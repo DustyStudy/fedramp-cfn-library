@@ -29,6 +29,25 @@ Resources:
               AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action: 'kms:*'
             Resource: '*'
+          # Required: CloudWatch Logs makes its own encrypt/decrypt calls
+          # as the logs service (separate from whichever IAM role
+          # publishes flow log records via logs:PutLogEvents). Without
+          # this statement, the log group can't be encrypted with this
+          # CMK at all.
+          - Sid: AllowCloudWatchLogsEncrypt
+            Effect: Allow
+            Principal:
+              Service: !Sub 'logs.${AWS::Region}.amazonaws.com'
+            Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Resource: '*'
+            Condition:
+              ArnLike:
+                'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*'
 
   FlowLogsGroup:
     Type: AWS::Logs::LogGroup

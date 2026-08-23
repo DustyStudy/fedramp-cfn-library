@@ -26,6 +26,29 @@ Resources:
               AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action: 'kms:*'
             Resource: '*'
+          # Required: CloudWatch Logs makes its own encrypt/decrypt calls
+          # as the logs service. Without this statement, log delivery to
+          # a KMS-encrypted log group fails outright.
+          - Sid: AllowCloudWatchLogsEncrypt
+            Effect: Allow
+            Principal:
+              Service: !Sub 'logs.${AWS::Region}.amazonaws.com'
+            Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Resource: '*'
+            Condition:
+              ArnLike:
+                'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*'
+          # Note: this key is also referenced by ECS Exec for encrypting
+          # the interactive session data channel, which separately
+          # requires kms:GenerateDataKey/kms:Decrypt for whichever IAM
+          # principals actually run `aws ecs execute-command` — grant
+          # that from your root configuration, since a reusable template
+          # can't know who those principals are.
 
   ECSLogGroup:
     Type: AWS::Logs::LogGroup
