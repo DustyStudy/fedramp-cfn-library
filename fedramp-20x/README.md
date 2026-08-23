@@ -22,11 +22,11 @@ guidance at:
 
 | Folder | KSI Category | Existing templates that already satisfy it |
 |---|---|---|
-| `ksi-cna/` | Cloud Native Architecture | *(none yet — this category is largely architectural and less template-driven)* |
-| `ksi-iam/` | Identity and Access Management | `moderate/iam-access-control/access-control-baseline.yaml`, `modules/iam-password-policy.yaml` |
-| `ksi-mla/` | Monitoring, Logging and Auditing | `modules/org-cloudtrail.yaml`, `modules/guardduty-org.yaml`, `modules/security-hub-org.yaml`, `moderate/logging-monitoring/cis-metric-alarms.yaml` |
-| `ksi-cnbc/` | Configuration and Network Boundary Controls | `modules/config-conformance-pack.yaml`, `moderate/network-boundary/vpc-flow-logs.yaml`, `moderate/network-boundary/default-security-group-lockdown.yaml`, `moderate/data-protection/s3-account-public-access-block.yaml` |
-| `ksi-svc/` | Service Configuration | `moderate/data-protection/s3-account-public-access-block.yaml`, `moderate/data-protection/kms-cmk-baseline.yaml` |
+| `ksi-cna/` | Cloud Native Architecture | `modules/eks-hardened/template.yaml`, `modules/ecs-fargate-hardened/template.yaml`, `modules/network-perimeter-vpc/template.yaml` |
+| `ksi-iam/` | Identity and Access Management | `moderate/iam-access-control/access-control-baseline.yaml`, `modules/iam-password-policy.yaml`, `modules/org-scp-boundary/template.yaml` |
+| `ksi-mla/` | Monitoring, Logging and Auditing | `modules/org-cloudtrail.yaml`, `modules/guardduty-org.yaml`, `modules/security-hub-org.yaml`, `moderate/logging-monitoring/cis-metric-alarms.yaml`, `modules/ecs-fargate-hardened/template.yaml` |
+| `ksi-cnbc/` | Configuration and Network Boundary Controls | `modules/config-conformance-pack.yaml`, `moderate/network-boundary/vpc-flow-logs.yaml`, `moderate/network-boundary/default-security-group-lockdown.yaml`, `moderate/data-protection/s3-account-public-access-block.yaml`, `modules/fips-vpc-endpoints/template.yaml`, `modules/org-scp-boundary/template.yaml`, `modules/waf-hardened/template.yaml` |
+| `ksi-svc/` | Service Configuration | `moderate/data-protection/s3-account-public-access-block.yaml`, `moderate/data-protection/kms-cmk-baseline.yaml`, `modules/account-baseline/template.yaml`, `modules/ecr-hardened/template.yaml`, `modules/rds-postgres-hardened/template.yaml`, `modules/ssm-patching-hardened/template.yaml` |
 | `ksi-inr/` | Incident Response | `modules/guardduty-org.yaml`, `moderate/incident-response/incident-notifications.yaml` |
 
 Many of `../modules/` templates already satisfy specific KSIs (see the

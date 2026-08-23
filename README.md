@@ -41,22 +41,54 @@ modules/             Shared nested-stack building blocks used across tracks
 docs/                Control-to-template cross-reference
 ```
 
+## Templates
+
+| Template | What it does |
+|---|---|
+| `org-cloudtrail` | Organization-wide CloudTrail, KMS-encrypted, with a dedicated access-log bucket |
+| `config-conformance-pack` | AWS Config recorder + delivery channel + FedRAMP Moderate conformance pack |
+| `guardduty-org` | GuardDuty with organization auto-enrollment, findings routed to SNS |
+| `security-hub-org` | Security Hub with default standards + organization auto-enrollment |
+| `iam-password-policy` | Account-wide IAM password policy |
+| `account-baseline` | EBS default encryption, S3 account public access block, optional default-VPC/SG lockdown |
+| `ecr-hardened` | KMS-encrypted ECR repository, tag immutability, scan-on-push |
+| `ecs-fargate-hardened` | ECS cluster with Container Insights and KMS-encrypted logging (incl. ECS Exec) |
+| `eks-hardened` | EKS cluster with KMS secrets envelope encryption, full control-plane logging, private-only endpoint |
+| `fips-vpc-endpoints` | VPC interface endpoints — see the template's comments for which services genuinely have FIPS-suffixed endpoints and which don't |
+| `network-perimeter-vpc` | 3-tier VPC with KMS-encrypted Flow Logs and a locked-down default security group |
+| `org-governance` | Workload-perimeter SCP, AI-services opt-out policy, centralized backup policy |
+| `org-scp-boundary` | Region-lock SCP, security-service protection, insecure-transport deny |
+| `rds-postgres-hardened` | Multi-AZ PostgreSQL with enforced TLS, KMS encryption, managed master password |
+| `ssm-patching-hardened` | Automated patch baseline, weekly maintenance window, KMS-encrypted patch logs |
+| `waf-hardened` | Regional WAFv2 with AWS-managed rule groups, rate limiting, KMS-encrypted logging |
+| `moderate/iam-access-control` | Access Analyzer, permission boundary, enforced-MFA group, root usage alerting |
+| `moderate/logging-monitoring` | 14 CIS/Security Hub CloudWatch metric-filter + alarm pairs |
+| `moderate/network-boundary` | VPC Flow Logs, default security group lockdown |
+| `moderate/data-protection` | Account-wide S3 Public Access Block, reusable general-purpose KMS CMK |
+| `moderate/incident-response` | Aggregated SNS topic for high-severity GuardDuty/Security Hub findings |
+
+See `docs/control-mapping.md` for the NIST 800-53/20x KSI mapping per
+template, and `docs/NIST-800-53-REV5-MATRIX.md` for the same information
+organized by control ID instead.
+
 ## Security scanning
 
 Every push and PR to `main` runs automatically via GitHub Actions
-(`.github/workflows/security-scan.yml`):
+(`.github/workflows/ci.yml`), in three jobs:
 
+- **Gitleaks** — secret/credential scanning
 - **cfn-lint** — CloudFormation syntax validation and AWS best practices
-- **Checkov** — security and compliance posture scanning against the
-  templates themselves (encryption, public access, least privilege, etc.)
+- **Checkov** (blocking) and **Trivy** (reporting to the Security tab) —
+  two independent security/compliance scanners against the templates
+  themselves
 
 Check the **Actions** tab on GitHub after your first push — new templates
 sometimes get flagged for things that are intentional design choices in a
 security baseline (for example, the permission boundary's `NotAction`
 wildcard is deliberate, not an oversight). Where a finding is an accepted
-risk rather than a bug, add a `# checkov:skip=CKV_AWS_XXX:<reason>` comment
-directly above the resource so the justification travels with the code —
-see `CONTRIBUTING.md` for the pattern.
+risk rather than a bug, add a `checkov: skip:` metadata block above the
+resource so the justification travels with the code — see
+`CONTRIBUTING.md` for the pattern.
 
 ## Getting started
 
