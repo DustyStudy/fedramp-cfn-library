@@ -66,6 +66,44 @@ Resources:
                 - '@@none'
               '@@assign': 'optOut'
 
+  # 3. Centralized Backup Policy
+  BackupCompliancePolicy:
+    Type: AWS::Organizations::Policy
+    Properties:
+      Name: 'fedramp-centralized-backup-policy'
+      Description: 'Automated centralized backup policy with retention'
+      Type: BACKUP_POLICY
+      TargetIds: !If [HasTargetId, [!Ref TargetId], !Ref 'AWS::NoValue']
+      Content: !Sub |
+        {
+          "plans": {
+            "FedRAMPDailyBackupPlan": {
+              "regions": { "@@assign": ["us-east-1", "us-west-2"] },
+              "rules": {
+                "DailyRule": {
+                  "schedule_expression": { "@@assign": "cron(0 5 ? * * *)" },
+                  "start_backup_window_minutes": { "@@assign": 60 },
+                  "complete_backup_window_minutes": { "@@assign": 120 },
+                  "lifecycle": {
+                    "move_to_cold_storage_after_days": { "@@assign": 30 },
+                    "delete_after_days": { "@@assign": ${BackupRetentionDays} }
+                  },
+                  "target_backup_vault_name": { "@@assign": "FedRAMPComplianceVault" }
+                }
+              },
+              "selections": {
+                "tags": {
+                  "FedRAMPBackup": {
+                    "iam_role_arn": { "@@assign": "arn:aws:iam::$account:role/AWSBackupDefaultServiceRole" },
+                    "tag_key": { "@@assign": "Backup" },
+                    "tag_value": { "@@assign": ["true", "True"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+
 Outputs:
   WorkloadPerimeterSCPId:
     Description: 'ID of the Workload Perimeter SCP'
@@ -74,3 +112,7 @@ Outputs:
   AIOptOutPolicyId:
     Description: 'ID of the AI Opt-Out Policy'
     Value: !Ref AIOptOutPolicy
+
+  BackupCompliancePolicyId:
+    Description: 'ID of the Centralized Backup Policy'
+    Value: !Ref BackupCompliancePolicy
