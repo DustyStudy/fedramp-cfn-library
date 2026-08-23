@@ -1,11 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'FedRAMP Shared Account Baseline Module'
+Description: 'FedRAMP Shared Account Baseline Module (Custom Resource Implementation)'
 
 Parameters:
   MinimumPasswordLength:
     Type: Number
     Default: 14
-    Description: 'Minimum password length for local IAM users (FedRAMP Moderate >= 14, High >= 16).'
+    Description: 'Minimum password length (FedRAMP Moderate >= 14, High >= 16).'
 
   MaxPasswordAge:
     Type: Number
@@ -26,49 +26,109 @@ Conditions:
   HasCustomKmsKey: !Not [!Equals [!Ref EBSKmsKeyArn, '']]
 
 Resources:
-  # S3 Account-Level Public Access Block
-  AccountPublicAccessBlock:
-    Type: AWS::S3::AccountPublicAccessBlock
+  # IAM Execution Role for Account Baseline Custom Resource
+  BaselineExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      AccountId: !Ref 'AWS::AccountId'
-      AccountPublicAccessBlockConfig:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FedRAMPAccountBaselinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*-account-baseline:*'
+              - Effect: Allow
+                Action:
+                  - s3:PutAccountPublicAccessBlock
+                  - s3:GetAccountPublicAccessBlock
+                  - ec2:EnableEbsEncryptionByDefault
+                  - ec2:GetEbsEncryptionByDefault
+                  - ec2:ModifyEbsDefaultKmsKeyId
+                  - ec2:GetEbsDefaultKmsKeyId
+                  - iam:UpdateAccountPasswordPolicy
+                  - iam:GetAccountPasswordPolicy
+                Resource: '*'
 
-  # EBS Default Encryption
-  EBSDefaultEncryption:
-    Type: AWS::EC2::EBSDefaultEncryption
+  # Custom Resource Lambda Handler
+  BaselineFunction:
+    Type: AWS::Lambda::Function
     Properties:
-      Enabled: true
+      FunctionName: !Sub '${AWS::StackName}-account-baseline'
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt BaselineExecutionRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
 
-  # Optional Customer-Managed KMS Key for EBS Default Encryption
-  EBSDefaultKmsKey:
-    Type: AWS::EC2::EBSDefaultKmsKey
-    Condition: HasCustomKmsKey
-    Properties:
-      KmsKeyId: !Ref EBSKmsKeyArn
+          def handler(event, context):
+              if event['RequestType'] in ['Create', 'Update']:
+                  try:
+                      s3control = boto3.client('s3control')
+                      ec2 = boto3.client('ec2')
+                      iam = boto3.client('iam')
+                      account_id = context.invoked_function_arn.split(':')[4]
+                      
+                      # 1. S3 Account Public Access Block
+                      s3control.put_public_access_block(
+                          AccountId=account_id,
+                          PublicAccessBlockConfiguration={
+                              'BlockPublicAcls': True,
+                              'IgnorePublicAcls': True,
+                              'BlockPublicPolicy': True,
+                              'RestrictPublicBuckets': True
+                          }
+                      )
+                      
+                      # 2. EBS Default Encryption
+                      ec2.enable_ebs_encryption_by_default()
+                      kms_key_arn = event['ResourceProperties'].get('EBSKmsKeyArn')
+                      if kms_key_arn:
+                          ec2.modify_ebs_default_kms_key_id(KmsKeyId=kms_key_arn)
+                          
+                      # 3. IAM Password Policy
+                      props = event['ResourceProperties']
+                      iam.update_account_password_policy(
+                          MinimumPasswordLength=int(props.get('MinimumPasswordLength', 14)),
+                          RequireSymbols=True,
+                          RequireNumbers=True,
+                          RequireUppercaseCharacters=True,
+                          RequireLowercaseCharacters=True,
+                          AllowUsersToChangePassword=True,
+                          MaxPasswordAge=int(props.get('MaxPasswordAge', 60)),
+                          PasswordReusePrevention=int(props.get('PasswordReusePrevention', 24)),
+                          HardExpiry=False
+                      )
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {"Status": "COMPLIANT"})
+                  except Exception as e:
+                      cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)})
+              else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
 
-  # FedRAMP Compliant IAM Password Policy
-  AccountPasswordPolicy:
-    Type: AWS::IAM::AccountPasswordPolicy
+  # Trigger Custom Resource Execution
+  AccountBaselineEnforcer:
+    Type: Custom::AccountBaseline
     Properties:
+      ServiceToken: !GetAtt BaselineFunction.Arn
       MinimumPasswordLength: !Ref MinimumPasswordLength
-      RequireLowercaseCharacters: true
-      RequireNumbers: true
-      RequireUppercaseCharacters: true
-      RequireSymbols: true
-      AllowUsersToChangePassword: true
       MaxPasswordAge: !Ref MaxPasswordAge
       PasswordReusePrevention: !Ref PasswordReusePrevention
-      HardExpiry: false
+      EBSKmsKeyArn: !If [HasCustomKmsKey, !Ref EBSKmsKeyArn, !Ref 'AWS::NoValue']
 
 Outputs:
-  S3PublicAccessBlockId:
-    Description: 'Account S3 Public Access Block status'
-    Value: !Ref AccountPublicAccessBlock
-
-  EBSDefaultEncryptionId:
-    Description: 'EBS default encryption status'
-    Value: !Ref EBSDefaultEncryption
+  BaselineStatus:
+    Description: 'Account Baseline Compliance Status'
+    Value: !GetAtt AccountBaselineEnforcer.Status

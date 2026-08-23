@@ -2,35 +2,84 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'FedRAMP Moderate Account Baseline'
 
 Resources:
-  AccountPublicAccessBlock:
-    Type: AWS::S3::AccountPublicAccessBlock
+  BaselineExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      AccountId: !Ref 'AWS::AccountId'
-      AccountPublicAccessBlockConfig:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FedRAMPModerateBaselinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*-moderate-baseline:*'
+              - Effect: Allow
+                Action:
+                  - s3:PutAccountPublicAccessBlock
+                  - ec2:EnableEbsEncryptionByDefault
+                  - iam:UpdateAccountPasswordPolicy
+                Resource: '*'
 
-  EBSDefaultEncryption:
-    Type: AWS::EC2::EBSDefaultEncryption
+  BaselineFunction:
+    Type: AWS::Lambda::Function
     Properties:
-      Enabled: true
+      FunctionName: !Sub '${AWS::StackName}-moderate-baseline'
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt BaselineExecutionRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
 
-  AccountPasswordPolicy:
-    Type: AWS::IAM::AccountPasswordPolicy
+          def handler(event, context):
+              if event['RequestType'] in ['Create', 'Update']:
+                  try:
+                      account_id = context.invoked_function_arn.split(':')[4]
+                      boto3.client('s3control').put_public_access_block(
+                          AccountId=account_id,
+                          PublicAccessBlockConfiguration={
+                              'BlockPublicAcls': True,
+                              'IgnorePublicAcls': True,
+                              'BlockPublicPolicy': True,
+                              'RestrictPublicBuckets': True
+                          }
+                      )
+                      boto3.client('ec2').enable_ebs_encryption_by_default()
+                      boto3.client('iam').update_account_password_policy(
+                          MinimumPasswordLength=14,
+                          RequireSymbols=True,
+                          RequireNumbers=True,
+                          RequireUppercaseCharacters=True,
+                          RequireLowercaseCharacters=True,
+                          AllowUsersToChangePassword=True,
+                          MaxPasswordAge=60,
+                          PasswordReusePrevention=24,
+                          HardExpiry=False
+                      )
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {"Status": "COMPLIANT"})
+                  except Exception as e:
+                      cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)})
+              else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+
+  AccountBaselineEnforcer:
+    Type: Custom::AccountBaseline
     Properties:
-      MinimumPasswordLength: 14
-      RequireLowercaseCharacters: true
-      RequireNumbers: true
-      RequireUppercaseCharacters: true
-      RequireSymbols: true
-      AllowUsersToChangePassword: true
-      MaxPasswordAge: 60
-      PasswordReusePrevention: 24
-      HardExpiry: false
+      ServiceToken: !GetAtt BaselineFunction.Arn
 
 Outputs:
   BaselineStatus:
     Description: 'FedRAMP Moderate Baseline Deployment Status'
-    Value: 'COMPLIANT'
+    Value: !GetAtt AccountBaselineEnforcer.Status

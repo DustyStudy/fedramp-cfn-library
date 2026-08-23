@@ -2,7 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'FedRAMP High Account Baseline with Dedicated KMS CMK'
 
 Resources:
-  # Customer-Managed KMS Key with Automated Key Rotation for FedRAMP High
   EBSCustomerKey:
     Type: AWS::KMS::Key
     Properties:
@@ -11,8 +10,8 @@ Resources:
       KeyPolicy:
         Version: '2012-10-17'
         Statement:
-          - Sid: 'AllowRootAccountAdmin'
-            Effect: 'Allow'
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
             Principal:
               AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action: 'kms:*'
@@ -24,38 +23,89 @@ Resources:
       AliasName: 'alias/fedramp-high-ebs-key'
       TargetKeyId: !Ref EBSCustomerKey
 
-  AccountPublicAccessBlock:
-    Type: AWS::S3::AccountPublicAccessBlock
+  BaselineExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      AccountId: !Ref 'AWS::AccountId'
-      AccountPublicAccessBlockConfig:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FedRAMPHighBaselinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*-high-baseline:*'
+              - Effect: Allow
+                Action:
+                  - s3:PutAccountPublicAccessBlock
+                  - ec2:EnableEbsEncryptionByDefault
+                  - ec2:ModifyEbsDefaultKmsKeyId
+                  - iam:UpdateAccountPasswordPolicy
+                Resource: '*'
 
-  EBSDefaultEncryption:
-    Type: AWS::EC2::EBSDefaultEncryption
+  BaselineFunction:
+    Type: AWS::Lambda::Function
     Properties:
-      Enabled: true
+      FunctionName: !Sub '${AWS::StackName}-high-baseline'
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt BaselineExecutionRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
 
-  EBSDefaultKmsKey:
-    Type: AWS::EC2::EBSDefaultKmsKey
-    Properties:
-      KmsKeyId: !GetAtt EBSCustomerKey.Arn
+          def handler(event, context):
+              if event['RequestType'] in ['Create', 'Update']:
+                  try:
+                      account_id = context.invoked_function_arn.split(':')[4]
+                      kms_key_arn = event['ResourceProperties']['EBSKmsKeyArn']
+                      
+                      boto3.client('s3control').put_public_access_block(
+                          AccountId=account_id,
+                          PublicAccessBlockConfiguration={
+                              'BlockPublicAcls': True,
+                              'IgnorePublicAcls': True,
+                              'BlockPublicPolicy': True,
+                              'RestrictPublicBuckets': True
+                          }
+                      )
+                      ec2 = boto3.client('ec2')
+                      ec2.enable_ebs_encryption_by_default()
+                      ec2.modify_ebs_default_kms_key_id(KmsKeyId=kms_key_arn)
+                      
+                      boto3.client('iam').update_account_password_policy(
+                          MinimumPasswordLength=16,
+                          RequireSymbols=True,
+                          RequireNumbers=True,
+                          RequireUppercaseCharacters=True,
+                          RequireLowercaseCharacters=True,
+                          AllowUsersToChangePassword=True,
+                          MaxPasswordAge=60,
+                          PasswordReusePrevention=24,
+                          HardExpiry=False
+                      )
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {"Status": "COMPLIANT"})
+                  except Exception as e:
+                      cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)})
+              else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
 
-  AccountPasswordPolicy:
-    Type: AWS::IAM::AccountPasswordPolicy
+  AccountBaselineEnforcer:
+    Type: Custom::AccountBaseline
     Properties:
-      MinimumPasswordLength: 16
-      RequireLowercaseCharacters: true
-      RequireNumbers: true
-      RequireUppercaseCharacters: true
-      RequireSymbols: true
-      AllowUsersToChangePassword: true
-      MaxPasswordAge: 60
-      PasswordReusePrevention: 24
-      HardExpiry: false
+      ServiceToken: !GetAtt BaselineFunction.Arn
+      EBSKmsKeyArn: !GetAtt EBSCustomerKey.Arn
 
 Outputs:
   EBSKmsKeyArn:
@@ -64,4 +114,4 @@ Outputs:
 
   BaselineStatus:
     Description: 'FedRAMP High Baseline Deployment Status'
-    Value: 'COMPLIANT'
+    Value: !GetAtt AccountBaselineEnforcer.Status
