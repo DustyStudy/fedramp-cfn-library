@@ -54,12 +54,20 @@ Resources:
 
   BaselineFunction:
     Type: AWS::Lambda::Function
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_116
+            comment: 'Custom Resource Lambda executes synchronously during CloudFormation provisioning and does not require an asynchronous DLQ'
+          - id: CKV_AWS_117
+            comment: 'Custom Resource Lambda requires direct access to AWS service APIs and does not run inside a VPC'
     Properties:
       FunctionName: !Sub '${AWS::StackName}-high-baseline'
       Runtime: python3.11
       Handler: index.handler
       Role: !GetAtt BaselineExecutionRole.Arn
       Timeout: 60
+      ReservedConcurrentExecutions: 1
       Code:
         ZipFile: |
           import boto3
