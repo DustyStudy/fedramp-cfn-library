@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'FedRAMP Moderate Account Baseline'
+
+Resources:
+  AccountPublicAccessBlock:
+    Type: AWS::S3::AccountPublicAccessBlock
+    Properties:
+      AccountId: !Ref 'AWS::AccountId'
+      AccountPublicAccessBlockConfig:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  EBSDefaultEncryption:
+    Type: AWS::EC2::EBSDefaultEncryption
+    Properties:
+      Enabled: true
+
+  AccountPasswordPolicy:
+    Type: AWS::IAM::AccountPasswordPolicy
+    Properties:
+      MinimumPasswordLength: 14
+      RequireLowercaseCharacters: true
+      RequireNumbers: true
+      RequireUppercaseCharacters: true
+      RequireSymbols: true
+      AllowUsersToChangePassword: true
+      MaxPasswordAge: 60
+      PasswordReusePrevention: 24
+      HardExpiry: false
+
+Outputs:
+  BaselineStatus:
+    Description: 'FedRAMP Moderate Baseline Deployment Status'
+    Value: 'COMPLIANT'

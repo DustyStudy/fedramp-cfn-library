@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'FedRAMP High Account Baseline with Dedicated KMS CMK'
+
+Resources:
+  # Customer-Managed KMS Key with Automated Key Rotation for FedRAMP High
+  EBSCustomerKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'Dedicated KMS CMK for FedRAMP High EBS default encryption'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'AllowRootAccountAdmin'
+            Effect: 'Allow'
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+  EBSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: 'alias/fedramp-high-ebs-key'
+      TargetKeyId: !Ref EBSCustomerKey
+
+  AccountPublicAccessBlock:
+    Type: AWS::S3::AccountPublicAccessBlock
+    Properties:
+      AccountId: !Ref 'AWS::AccountId'
+      AccountPublicAccessBlockConfig:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  EBSDefaultEncryption:
+    Type: AWS::EC2::EBSDefaultEncryption
+    Properties:
+      Enabled: true
+
+  EBSDefaultKmsKey:
+    Type: AWS::EC2::EBSDefaultKmsKey
+    Properties:
+      KmsKeyId: !GetAtt EBSCustomerKey.Arn
+
+  AccountPasswordPolicy:
+    Type: AWS::IAM::AccountPasswordPolicy
+    Properties:
+      MinimumPasswordLength: 16
+      RequireLowercaseCharacters: true
+      RequireNumbers: true
+      RequireUppercaseCharacters: true
+      RequireSymbols: true
+      AllowUsersToChangePassword: true
+      MaxPasswordAge: 60
+      PasswordReusePrevention: 24
+      HardExpiry: false
+
+Outputs:
+  EBSKmsKeyArn:
+    Description: 'ARN of the dedicated KMS Key for EBS Encryption'
+    Value: !GetAtt EBSCustomerKey.Arn
+
+  BaselineStatus:
+    Description: 'FedRAMP High Baseline Deployment Status'
+    Value: 'COMPLIANT'

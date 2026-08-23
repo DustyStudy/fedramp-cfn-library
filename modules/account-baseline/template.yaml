@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'FedRAMP Shared Account Baseline Module'
+
+Parameters:
+  MinimumPasswordLength:
+    Type: Number
+    Default: 14
+    Description: 'Minimum password length for local IAM users (FedRAMP Moderate >= 14, High >= 16).'
+
+  MaxPasswordAge:
+    Type: Number
+    Default: 60
+    Description: 'Maximum password age in days (FedRAMP <= 60 or 90 days).'
+
+  PasswordReusePrevention:
+    Type: Number
+    Default: 24
+    Description: 'Number of previous passwords to block reuse (FedRAMP >= 24).'
+
+  EBSKmsKeyArn:
+    Type: String
+    Default: ''
+    Description: 'Optional custom KMS Key ARN for EBS default encryption.'
+
+Conditions:
+  HasCustomKmsKey: !Not [!Equals [!Ref EBSKmsKeyArn, '']]
+
+Resources:
+  # S3 Account-Level Public Access Block
+  AccountPublicAccessBlock:
+    Type: AWS::S3::AccountPublicAccessBlock
+    Properties:
+      AccountId: !Ref 'AWS::AccountId'
+      AccountPublicAccessBlockConfig:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # EBS Default Encryption
+  EBSDefaultEncryption:
+    Type: AWS::EC2::EBSDefaultEncryption
+    Properties:
+      Enabled: true
+
+  # Optional Customer-Managed KMS Key for EBS Default Encryption
+  EBSDefaultKmsKey:
+    Type: AWS::EC2::EBSDefaultKmsKey
+    Condition: HasCustomKmsKey
+    Properties:
+      KmsKeyId: !Ref EBSKmsKeyArn
+
+  # FedRAMP Compliant IAM Password Policy
+  AccountPasswordPolicy:
+    Type: AWS::IAM::AccountPasswordPolicy
+    Properties:
+      MinimumPasswordLength: !Ref MinimumPasswordLength
+      RequireLowercaseCharacters: true
+      RequireNumbers: true
+      RequireUppercaseCharacters: true
+      RequireSymbols: true
+      AllowUsersToChangePassword: true
+      MaxPasswordAge: !Ref MaxPasswordAge
+      PasswordReusePrevention: !Ref PasswordReusePrevention
+      HardExpiry: false
+
+Outputs:
+  S3PublicAccessBlockId:
+    Description: 'Account S3 Public Access Block status'
+    Value: !Ref AccountPublicAccessBlock
+
+  EBSDefaultEncryptionId:
+    Description: 'EBS default encryption status'
+    Value: !Ref EBSDefaultEncryption
