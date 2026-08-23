@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'FedRAMP Moderate Organization Governance'
+
+Parameters:
+  TargetId:
+    Type: String
+    Default: ''
+    Description: 'Target OU or Account ID to attach the policies'
+
+Conditions:
+  HasTargetId: !Not [!Equals [!Ref TargetId, '']]
+
+Resources:
+  WorkloadPerimeterSCP:
+    Type: AWS::Organizations::Policy
+    Properties:
+      Name: 'fedramp-moderate-workload-perimeter'
+      Description: 'FedRAMP Moderate Workload Perimeter'
+      Type: SERVICE_CONTROL_POLICY
+      TargetIds: !If [HasTargetId, [!Ref TargetId], !Ref 'AWS::NoValue']
+      Content:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyRootUserActions
+            Effect: Deny
+            Action: '*'
+            Resource: '*'
+            Condition:
+              StringLike:
+                'aws:PrincipalArn': 'arn:aws:iam::*:root'
+
+          - Sid: DenyDirectInternetGateways
+            Effect: Deny
+            Action:
+              - 'ec2:CreateInternetGateway'
+              - 'ec2:AttachInternetGateway'
+            Resource: '*'
+
+          - Sid: DenyLocalIAMUsers
+            Effect: Deny
+            Action:
+              - 'iam:CreateUser'
+              - 'iam:CreateAccessKey'
+            Resource: '*'
+
+  AIOptOutPolicy:
+    Type: AWS::Organizations::Policy
+    Properties:
+      Name: 'fedramp-moderate-ai-opt-out'
+      Description: 'Opt out of AWS AI training'
+      Type: AISERVICES_OPT_OUT_POLICY
+      TargetIds: !If [HasTargetId, [!Ref TargetId], !Ref 'AWS::NoValue']
+      Content:
+        services:
+          default:
+            opt_out_policy:
+              '@@operators_allowed_for_child_policies':
+                - '@@none'
+              '@@assign': 'optOut'
+
+Outputs:
+  PerimeterSCPId:
+    Value: !Ref WorkloadPerimeterSCP
