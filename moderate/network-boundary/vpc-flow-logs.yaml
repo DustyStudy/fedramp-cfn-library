@@ -30,6 +30,11 @@ Resources:
               a circular anti-pattern AWS explicitly advises against, so
               this is the terminal sink and intentionally has no further
               logging target.
+          - id: "CKV_AWS_145"
+            comment: >-
+              S3 server access logs must land in a bucket encrypted with
+              SSE-S3, not SSE-KMS — that's an AWS platform restriction on
+              the access-logging feature itself, not a choice made here.
     Properties:
       BucketName: !Sub 'vpc-flow-logs-access-logs-${AWS::AccountId}-${AWS::Region}-${VpcId}'
       BucketEncryption:
@@ -78,6 +83,38 @@ Resources:
               Bool:
                 'aws:SecureTransport': 'false'
 
+  # VPC Flow Logs delivered to S3 support SSE-KMS, but with two specific
+  # requirements: the key must be referenced by full ARN (a key ID causes
+  # a silent "LogDestination undeliverable" failure — a known AWS
+  # platform quirk, not a typo), and the delivery.logs.amazonaws.com
+  # service principal needs explicit key policy permissions, same as any
+  # other AWS log-delivery service using a customer-managed key.
+  FlowLogKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS key for VPC Flow Logs S3 delivery bucket'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: AllowFlowLogDeliveryEncrypt
+            Effect: Allow
+            Principal:
+              Service: delivery.logs.amazonaws.com
+            Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Resource: '*'
+
   FlowLogBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -85,7 +122,10 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
+              SSEAlgorithm: 'aws:kms'
+              # Must be the full key ARN, not a bare key ID — see the
+              # note above the FlowLogKmsKey resource.
+              KMSMasterKeyID: !GetAtt FlowLogKmsKey.Arn
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
