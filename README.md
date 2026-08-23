@@ -41,6 +41,23 @@ modules/             Shared nested-stack building blocks used across tracks
 docs/                Control-to-template cross-reference
 ```
 
+## Security scanning
+
+Every push and PR to `main` runs automatically via GitHub Actions
+(`.github/workflows/security-scan.yml`):
+
+- **cfn-lint** — CloudFormation syntax validation and AWS best practices
+- **Checkov** — security and compliance posture scanning against the
+  templates themselves (encryption, public access, least privilege, etc.)
+
+Check the **Actions** tab on GitHub after your first push — new templates
+sometimes get flagged for things that are intentional design choices in a
+security baseline (for example, the permission boundary's `NotAction`
+wildcard is deliberate, not an oversight). Where a finding is an accepted
+risk rather than a bug, add a `# checkov:skip=CKV_AWS_XXX:<reason>` comment
+directly above the resource so the justification travels with the code —
+see `CONTRIBUTING.md` for the pattern.
+
 ## Getting started
 
 1. Start with `modules/` — these are the foundational building blocks

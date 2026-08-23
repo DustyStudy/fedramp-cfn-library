@@ -1,0 +1,250 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Account-level IAM access control baseline: IAM Access Analyzer (external
+  and unused access), a permission boundary for human/developer roles,
+  enforced-MFA policy for IAM users, and root account usage alerting.
+
+  Control mapping:
+    Rev5 (Moderate/High): AC-2, AC-2(3), AC-3, AC-6, AC-6(1), AC-6(5),
+      IA-2(1), IA-5(1)
+    FedRAMP 20x: KSI-IAM-01 (strong authentication), KSI-IAM-02 (credential
+      lifecycle), KSI-IAM-03 (least privilege / unused access review)
+
+Parameters:
+  AnalyzerType:
+    Type: String
+    Default: ACCOUNT
+    AllowedValues: [ACCOUNT, ORGANIZATION]
+    Description: >
+      Use ORGANIZATION if deploying from the delegated Access Analyzer
+      administrator account to cover all member accounts; ACCOUNT for a
+      single-account deployment.
+
+  UnusedAccessAge:
+    Type: Number
+    Default: 90
+    Description: >
+      Days of inactivity before Access Analyzer flags a permission as
+      unused (supports AC-2(3), periodic account review).
+
+  RootUsageAlertTopicName:
+    Type: String
+    Default: root-account-usage-alerts
+
+  MaxSessionDurationSeconds:
+    Type: Number
+    Default: 3600
+    MinValue: 900
+    MaxValue: 43200
+    Description: Maximum session duration for the permission boundary's intended roles (AC-12 adjacent).
+
+Resources:
+  # --- IAM Access Analyzer: external + unused access ---
+  ExternalAccessAnalyzer:
+    Type: AWS::AccessAnalyzer::Analyzer
+    Properties:
+      AnalyzerName: !Sub 'external-access-${AWS::AccountId}'
+      Type: !Ref AnalyzerType
+
+  UnusedAccessAnalyzer:
+    Type: AWS::AccessAnalyzer::Analyzer
+    Properties:
+      AnalyzerName: !Sub 'unused-access-${AWS::AccountId}'
+      Type: !Ref AnalyzerType
+      AnalyzerConfiguration:
+        UnusedAccessConfiguration:
+          UnusedAccessAge: !Ref UnusedAccessAge
+
+  # --- Permission boundary for human/developer IAM roles (AC-6, AC-6(1)) ---
+  # Attach this boundary to any role or user your break-glass/dev tooling
+  # creates, so even a misconfigured trust policy can't grant more than this
+  # ceiling allows. It does not grant permissions itself — it caps them.
+  DeveloperPermissionBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: developer-permission-boundary
+      Description: >
+        Permission boundary ceiling for human/developer roles. Attach via
+        PermissionsBoundary on role/user creation. Denies IAM privilege
+        escalation and organization/account-level changes regardless of
+        what the role's own policy grants.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowMostActionsWithinBoundary
+            Effect: Allow
+            NotAction:
+              - 'iam:*'
+              - 'organizations:*'
+              - 'account:*'
+              - 'ce:*'
+            Resource: '*'
+          - Sid: AllowLimitedIAMReadOnly
+            Effect: Allow
+            Action:
+              - 'iam:Get*'
+              - 'iam:List*'
+              - 'iam:GenerateCredentialReport'
+              - 'iam:GenerateServiceLastAccessedDetails'
+            Resource: '*'
+          - Sid: DenyBoundaryPolicyModification
+            Effect: Deny
+            Action:
+              - 'iam:DeletePolicy'
+              - 'iam:DeletePolicyVersion'
+              - 'iam:CreatePolicyVersion'
+              - 'iam:SetDefaultPolicyVersion'
+            Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:policy/developer-permission-boundary'
+          - Sid: DenyRemovingOwnBoundary
+            Effect: Deny
+            Action:
+              - 'iam:DeleteUserPermissionsBoundary'
+              - 'iam:DeleteRolePermissionsBoundary'
+            Resource: '*'
+          - Sid: DenyPrivilegeEscalationViaIAM
+            Effect: Deny
+            Action:
+              # Direct grant paths
+              - 'iam:CreateUser'
+              - 'iam:CreateRole'
+              - 'iam:AttachUserPolicy'
+              - 'iam:AttachRolePolicy'
+              - 'iam:AttachGroupPolicy'
+              - 'iam:PutUserPolicy'
+              - 'iam:PutRolePolicy'
+              - 'iam:PutGroupPolicy'
+              - 'iam:AddUserToGroup'
+              # Policy-version manipulation (edit an existing attached
+              # policy in place, or roll back to a permissive prior version)
+              - 'iam:CreatePolicyVersion'
+              - 'iam:SetDefaultPolicyVersion'
+              # Trust-policy manipulation (widen who can assume a role)
+              - 'iam:UpdateAssumeRolePolicy'
+              # Credential creation for other principals
+              - 'iam:CreateAccessKey'
+              - 'iam:CreateLoginProfile'
+              - 'iam:UpdateLoginProfile'
+            Resource: '*'
+          # Note: this list covers the IAM-only escalation paths. It does
+          # NOT cover iam:PassRole combined with a compute service (Lambda,
+          # EC2, CloudFormation, etc.) to run code as a more-privileged
+          # role — that requires either a resource-scoped PassRole
+          # condition per role, or an SCP restricting which roles can be
+          # passed to which services. Treat this boundary as one layer,
+          # not the only layer.
+
+  # --- Enforced MFA for IAM users (IA-2(1), AC-7) ---
+  # Users in this group are denied nearly all actions unless authenticated
+  # with MFA. Add IAM users who need console/API access here.
+  RequireMFAGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: require-mfa
+      Policies:
+        - PolicyName: DenyAllExceptMFASetupWithoutMFA
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowViewAccountInfo
+                Effect: Allow
+                Action:
+                  - iam:GetAccountPasswordPolicy
+                  - iam:GetAccountSummary
+                  - iam:ListVirtualMFADevices
+                Resource: '*'
+              - Sid: AllowManageOwnMFA
+                Effect: Allow
+                Action:
+                  - iam:CreateVirtualMFADevice
+                  - iam:EnableMFADevice
+                  - iam:ResyncMFADevice
+                  - iam:DeactivateMFADevice
+                  - iam:DeleteVirtualMFADevice
+                  - iam:ListMFADevices
+                Resource:
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/${!aws:username}'
+              - Sid: AllowChangeOwnPassword
+                Effect: Allow
+                Action:
+                  - iam:ChangePassword
+                  - iam:GetUser
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:user/${!aws:username}'
+              - Sid: DenyAllExceptListedUnlessMFAd
+                Effect: Deny
+                NotAction:
+                  - iam:CreateVirtualMFADevice
+                  - iam:EnableMFADevice
+                  - iam:GetUser
+                  - iam:ListMFADevices
+                  - iam:ListVirtualMFADevices
+                  - iam:ResyncMFADevice
+                  - iam:ChangePassword
+                  - iam:GetAccountPasswordPolicy
+                  - iam:GetAccountSummary
+                  - sts:GetSessionToken
+                Resource: '*'
+                Condition:
+                  BoolIfExists:
+                    'aws:MultiFactorAuthPresent': 'false'
+
+  # --- Root account usage alerting (AC-6(5), AU-6) ---
+  RootUsageAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref RootUsageAlertTopicName
+      KmsMasterKeyId: alias/aws/sns
+
+  RootUsageAlertTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref RootUsageAlertTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref RootUsageAlertTopic
+
+  RootUsageEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: root-account-usage
+      Description: >
+        Alerts whenever the root account is used for any action — root
+        should only ever be used for the handful of tasks that require it.
+        Requires the org/account CloudTrail trail to be logging management
+        events (see modules/org-cloudtrail.yaml).
+      EventPattern:
+        detail-type:
+          - AWS API Call via CloudTrail
+        detail:
+          userIdentity:
+            type:
+              - Root
+      State: ENABLED
+      Targets:
+        - Arn: !Ref RootUsageAlertTopic
+          Id: RootUsageAlertTarget
+
+Outputs:
+  ExternalAccessAnalyzerArn:
+    Description: ARN of the external-access analyzer
+    Value: !GetAtt ExternalAccessAnalyzer.Arn
+  UnusedAccessAnalyzerArn:
+    Description: ARN of the unused-access analyzer
+    Value: !GetAtt UnusedAccessAnalyzer.Arn
+  PermissionBoundaryArn:
+    Description: >
+      ARN to reference in the PermissionsBoundary property when creating
+      human/developer IAM roles or users
+    Value: !Ref DeveloperPermissionBoundary
+  RequireMFAGroupName:
+    Description: IAM group name — add users here to enforce MFA
+    Value: !Ref RequireMFAGroup
+  RootUsageAlertTopicArn:
+    Description: Subscribe your security team's email/Slack integration here
+    Value: !Ref RootUsageAlertTopic

@@ -25,10 +25,38 @@ trustworthy reference — please keep a few things in mind.
 ## PR checklist
 
 - [ ] Template validated with `aws cloudformation validate-template`
+- [ ] cfn-lint and Checkov pass in CI (or findings are explicitly skipped
+      with justification — see below)
 - [ ] Control/KSI mapping added to `docs/control-mapping.md`
 - [ ] No hardcoded account IDs, ARNs, or credentials
 - [ ] README in the relevant folder updated if this changes scope
 - [ ] Deployed successfully in a test account
+
+## Handling a Checkov finding you disagree with
+
+Security baseline templates sometimes need patterns Checkov flags by
+default — a deliberately broad `NotAction` in a permission boundary, an
+AWS-managed KMS key where a CMK isn't warranted, etc. Don't silence these
+by disabling the whole check repo-wide. Instead, skip it at the specific
+resource with a reason, so the next reader (including future-you) can see
+why:
+
+```yaml
+Resources:
+  MyResource:
+    Type: AWS::Some::Resource
+    Metadata:
+      checkov:
+        skip:
+          - id: "CKV_AWS_XXX"
+            comment: "Why this is intentional, not an oversight"
+    Properties:
+      ...
+```
+
+If you're not sure whether a finding is a real issue or an accepted
+trade-off, open the PR anyway and flag it in the description — that's a
+useful discussion to have in the open.
 
 ## Reporting issues
 

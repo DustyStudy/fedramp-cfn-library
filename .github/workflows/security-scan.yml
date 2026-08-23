@@ -1,0 +1,50 @@
+name: CloudFormation Security Scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.yaml'
+      - '**/*.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.yaml'
+      - '**/*.yml'
+  workflow_dispatch: {}
+
+jobs:
+  cfn-lint:
+    name: cfn-lint (syntax & AWS best practices)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install cfn-lint
+        run: pip install cfn-lint
+
+      - name: Run cfn-lint on all templates
+        run: |
+          find . -type f \( -name "*.yaml" -o -name "*.yml" \) \
+            -not -path "./.github/*" \
+            -print0 | xargs -0 cfn-lint --format pretty
+
+  checkov:
+    name: Checkov (security & compliance posture)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: cloudformation
+          output_format: cli
+          quiet: false
+          soft_fail: false
