@@ -1,0 +1,151 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'FedRAMP SI-2 Compliant SSM Patch Baseline, Maintenance Window & Audit Logging'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: 'fedramp'
+    Description: 'Environment identifier'
+
+  MaintenanceWindowSchedule:
+    Type: String
+    Default: 'cron(0 2 ? * SUN *)'
+    Description: 'Cron schedule for patch maintenance window'
+
+Resources:
+  # KMS CMK for SSM Logging
+  SSMKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS Key for SSM Patch Log Encryption'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+  # S3 Bucket for Patch Run Command Output Logs
+  PatchLogsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${Environment}-ssm-patch-logs-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyId: !GetAtt SSMKmsKey.Arn
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # FedRAMP SI-2 Compliant Patch Baseline
+  AmazonLinuxPatchBaseline:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: !Sub '${Environment}-amazon-linux-patch-baseline'
+      Description: 'FedRAMP SI-2 Compliant Baseline for Amazon Linux'
+      OperatingSystem: AMAZON_LINUX_2023
+      ApprovalRules:
+        PatchRules:
+          - ApproveAfterDays: 7
+            ComplianceLevel: CRITICAL
+            PatchFilterGroup:
+              PatchFilters:
+                - Key: CLASSIFICATION
+                  Values:
+                    - Security
+                    - Bugfix
+                - Key: SEVERITY
+                  Values:
+                    - Critical
+                    - Important
+          - ApproveAfterDays: 30
+            ComplianceLevel: MEDIUM
+            PatchFilterGroup:
+              PatchFilters:
+                - Key: SEVERITY
+                  Values:
+                    - Medium
+                    - Low
+
+  # IAM Service Role for Maintenance Window Execution
+  MaintenanceWindowRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ssm.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonSSMMaintenanceWindowRole
+
+  # Weekly Patching Maintenance Window
+  PatchMaintenanceWindow:
+    Type: AWS::SSM::MaintenanceWindow
+    Properties:
+      Name: !Sub '${Environment}-weekly-patch-window'
+      Description: 'Weekly maintenance window for FedRAMP SI-2 patch remediation'
+      Schedule: !Ref MaintenanceWindowSchedule
+      Duration: 3
+      Cutoff: 1
+      AllowUnassociatedTargets: false
+
+  # Maintenance Window Target Group (Instances tagged PatchGroup=FedRAMPCompliance)
+  PatchWindowTarget:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties:
+      WindowId: !Ref PatchMaintenanceWindow
+      ResourceType: INSTANCE
+      Name: 'FedRAMPComplianceInstances'
+      Targets:
+        - Key: 'tag:PatchGroup'
+          Values:
+            - 'FedRAMPCompliance'
+
+  # Maintenance Window Task: Execute AWS-RunPatchBaseline
+  PatchWindowTask:
+    Type: AWS::SSM::MaintenanceWindowTask
+    Properties:
+      WindowId: !Ref PatchMaintenanceWindow
+      TaskType: RUN_COMMAND
+      TaskArn: 'AWS-RunPatchBaseline'
+      Priority: 1
+      ServiceRoleArn: !GetAtt MaintenanceWindowRole.Arn
+      MaxConcurrency: '50%'
+      MaxErrors: '0'
+      Targets:
+        - Key: WindowTargetIds
+          Values:
+            - !Ref PatchWindowTarget
+      TaskInvocationParameters:
+        MaintenanceWindowRunCommandParameters:
+          OutputS3BucketName: !Ref PatchLogsBucket
+          OutputS3KeyPrefix: 'patch-outputs/'
+          ServiceRoleArn: !GetAtt MaintenanceWindowRole.Arn
+          TimeoutSeconds: 3600
+          Parameters:
+            Operation:
+              - 'Install'
+
+Outputs:
+  PatchBaselineId:
+    Description: 'Patch Baseline ID'
+    Value: !Ref AmazonLinuxPatchBaseline
+  MaintenanceWindowId:
+    Description: 'Maintenance Window ID'
+    Value: !Ref PatchMaintenanceWindow
+  PatchLogsBucketArn:
+    Description: 'Patch Logs S3 Bucket ARN'
+    Value: !GetAtt PatchLogsBucket.Arn
