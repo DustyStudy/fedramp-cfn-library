@@ -32,6 +32,13 @@ Resources:
   # S3 Bucket for Patch Run Command Output Logs
   PatchLogsBucket:
     Type: AWS::S3::Bucket
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_18
+            comment: 'Access logs are consolidated into the organization centralized logging sink'
+          - id: CKV_AWS_144
+            comment: 'Cross-region replication handled at log archive sink level'
     Properties:
       BucketName: !Sub '${Environment}-ssm-patch-logs-${AWS::AccountId}'
       VersioningConfiguration:
@@ -40,7 +47,7 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: 'aws:kms'
-              KMSMasterKeyId: !GetAtt SSMKmsKey.Arn
+              KMSMasterKeyID: !GetAtt SSMKmsKey.Arn
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
