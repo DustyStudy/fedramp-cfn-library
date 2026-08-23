@@ -1,4 +1,4 @@
-name: FedRAMP CloudFormation CI & SAST
+name: Hardened FedRAMP CloudFormation Pipeline
 
 on:
   push:
@@ -6,15 +6,33 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
-  validate:
-    name: CFN-Lint & Checkov Scan
+  secret-scan:
+    name: Secret & Credential Detection
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  syntax-and-lint:
+    name: CloudFormation Linter (cfn-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -22,12 +40,33 @@ jobs:
       - name: Install CFN-Lint
         run: pip install cfn-lint
 
-      - name: Run CFN-Lint
-        run: cfn-lint $(find . -type f \( -name "*.yaml" -o -name "*.yml" \) ! -path "./.github/*")
+      - name: Run CFN-Lint on all CloudFormation Templates
+        run: |
+          cfn-lint $(find . -type f \( -name "*.yaml" -o -name "*.yml" \) ! -path "./.github/*")
 
-      - name: Run Checkov Security SAST
+  sast-security-scan:
+    name: Multi-Engine SAST (Checkov & Trivy)
+    runs-on: ubuntu-latest
+    needs: [secret-scan, syntax-and-lint]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Engine 1: Checkov CloudFormation FedRAMP / NIST Benchmark Scan
+      - name: Run Checkov SAST
         uses: bridgecrewio/checkov-action@master
         with:
           framework: cloudformation
-          output_format: cli
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
           soft_fail: false
+
+      # Engine 2: Trivy CloudFormation Scanner
+      - name: Run Trivy Misconfiguration Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          format: 'table'
