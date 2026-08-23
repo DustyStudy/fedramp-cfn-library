@@ -74,7 +74,7 @@ jobs:
 
       - name: Upload Trivy Scan Results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('trivy-cfn-results.sarif') != ''
         with:
           sarif_file: 'trivy-cfn-results.sarif'
           category: 'trivy-cloudformation'
