@@ -1,0 +1,162 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Enables VPC Flow Logs (all traffic) delivered to an encrypted, access-logged
+  S3 bucket. Deploy once per VPC.
+
+  Control mapping:
+    Rev5 (Moderate/High): SC-7, AU-2, AU-12
+    FedRAMP 20x: KSI-CNBC-02 (network boundary monitoring), KSI-MLA-01 (comprehensive logging)
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC to enable Flow Logs for.
+
+  LogRetentionDays:
+    Type: Number
+    Default: 365
+    Description: S3 lifecycle retention in days for flow log records.
+
+Resources:
+  FlowLogAccessLogBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      checkov:
+        skip:
+          - id: "CKV_AWS_18"
+            comment: >-
+              This bucket IS the access-log destination for
+              FlowLogBucket. A log-destination bucket logging to itself is
+              a circular anti-pattern AWS explicitly advises against, so
+              this is the terminal sink and intentionally has no further
+              logging target.
+    Properties:
+      BucketName: !Sub 'vpc-flow-logs-access-logs-${AWS::AccountId}-${AWS::Region}-${VpcId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireAccessLogs
+            Status: Enabled
+            ExpirationInDays: !Ref LogRetentionDays
+
+  FlowLogAccessLogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FlowLogAccessLogBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: S3ServerAccessLogsPolicy
+            Effect: Allow
+            Principal:
+              Service: logging.s3.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${FlowLogAccessLogBucket.Arn}/*'
+            Condition:
+              ArnLike:
+                'aws:SourceArn': !GetAtt FlowLogBucket.Arn
+              StringEquals:
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt FlowLogAccessLogBucket.Arn
+              - !Sub '${FlowLogAccessLogBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
+  FlowLogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'vpc-flow-logs-${AWS::AccountId}-${AWS::Region}-${VpcId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref FlowLogAccessLogBucket
+        LogFilePrefix: flow-log-bucket-access-logs/
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArchiveAndExpire
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 90
+                StorageClass: STANDARD_IA
+            ExpirationInDays: !Ref LogRetentionDays
+
+  FlowLogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FlowLogBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSLogDeliveryWrite
+            Effect: Allow
+            Principal:
+              Service: delivery.logs.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${FlowLogBucket.Arn}/AWSLogs/${AWS::AccountId}/*'
+            Condition:
+              StringEquals:
+                's3:x-amz-acl': bucket-owner-full-control
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+          - Sid: AWSLogDeliveryAclCheck
+            Effect: Allow
+            Principal:
+              Service: delivery.logs.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt FlowLogBucket.Arn
+            Condition:
+              StringEquals:
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt FlowLogBucket.Arn
+              - !Sub '${FlowLogBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
+  VpcFlowLog:
+    Type: AWS::EC2::FlowLog
+    DependsOn: FlowLogBucketPolicy
+    Properties:
+      ResourceType: VPC
+      ResourceId: !Ref VpcId
+      TrafficType: ALL
+      LogDestinationType: s3
+      LogDestination: !GetAtt FlowLogBucket.Arn
+      MaxAggregationInterval: 600
+
+Outputs:
+  FlowLogId:
+    Description: ID of the VPC Flow Log
+    Value: !Ref VpcFlowLog
+  FlowLogBucketName:
+    Description: S3 bucket storing flow log records
+    Value: !Ref FlowLogBucket

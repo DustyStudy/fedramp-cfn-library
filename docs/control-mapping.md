@@ -74,12 +74,39 @@ Note: the require-MFA group governs IAM *users* only — SSO/Identity Center
 users authenticate through your IdP, so their MFA enforcement lives there,
 not in this template.
 
+### network-boundary/
+
+| Template | Rev5 Controls | 20x KSI |
+|---|---|---|
+| `vpc-flow-logs.yaml` | SC-7, AU-2, AU-12 | KSI-CNBC-02, KSI-MLA-01 |
+| `default-security-group-lockdown.yaml` | SC-7, CM-7 | KSI-CNBC-02 |
+
+### data-protection/
+
+| Template | Rev5 Controls | 20x KSI |
+|---|---|---|
+| `s3-account-public-access-block.yaml` | AC-3, AC-6, SC-7 | KSI-CNBC-01, KSI-SVC-01 |
+| `kms-cmk-baseline.yaml` | SC-12, SC-13, SC-28 | KSI-SVC-02 |
+
+**Note:** `s3-account-public-access-block.yaml` and
+`default-security-group-lockdown.yaml` both use a Lambda-backed custom
+resource, for the same reason as the modules noted above: neither
+account-level S3 Public Access Block nor default-security-group rule
+management has a native CloudFormation resource type.
+
+### incident-response/
+
+| Template | Rev5 Controls | 20x KSI |
+|---|---|---|
+| `incident-notifications.yaml` | IR-4, IR-5, IR-6 | KSI-INR-01, KSI-INR-02 |
+
 ## high/
 
 High reuses the Moderate folder structure with tighter parameters. Only list
 a template here if it diverges structurally from its Moderate counterpart
 (not just parameter values) — e.g. FIPS 140-3 validated endpoint enforcement,
 extended log retention, additional audit event types required at High.
+See `high/README.md` for example parameter override files.
 
 ## fedramp-20x/
 

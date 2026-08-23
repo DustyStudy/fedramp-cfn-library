@@ -1,0 +1,10 @@
+[
+  {
+    "ParameterKey": "LogRetentionDays",
+    "ParameterValue": "1096"
+  },
+  {
+    "ParameterKey": "S3LogRetentionDays",
+    "ParameterValue": "2555"
+  }
+]

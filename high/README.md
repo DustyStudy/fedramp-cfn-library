@@ -11,6 +11,10 @@ diverges *structurally* from its Moderate counterpart — for example:
 
 Where a Moderate template only needs different **parameter values** (e.g.
 `LogRetentionDays`), deploy the same Moderate template with a High
-parameters file instead of duplicating the template here.
+parameters file instead of duplicating the template here. See
+`example-params/` for illustrative examples of this pattern — the exact
+figures in those files are starting points, not universal FedRAMP High
+requirements; retention windows and other numeric thresholds vary by
+agency SSP, so confirm them against yours before using them as-is.
 
 See `../docs/control-mapping.md` for detail on what's diverged and why.

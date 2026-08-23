@@ -9,8 +9,8 @@ underpin nearly every control family below.
 |---|---|---|
 | `logging-monitoring/` | AU | `cis-metric-alarms.yaml` — 14 CIS/Security Hub CloudWatch metric-filter + alarm pairs (root usage, unauthorized API calls, console sign-in without MFA, IAM/CloudTrail/Config/S3/security-group/NACL/gateway/route-table/VPC changes), built on `modules/org-cloudtrail.yaml`'s log group |
 | `iam-access-control/` | AC, IA | `access-control-baseline.yaml` — Access Analyzer (external + unused access), permission boundary, enforced-MFA group, root usage alerting |
-| `network-boundary/` | SC | Planned |
-| `data-protection/` | SC-13, SC-28, MP | Planned |
-| `incident-response/` | IR | Planned |
+| `network-boundary/` | SC | `vpc-flow-logs.yaml` — VPC Flow Logs to encrypted S3; `default-security-group-lockdown.yaml` — strips all rules from the default SG |
+| `data-protection/` | SC-13, SC-28, MP | `s3-account-public-access-block.yaml` — account-wide S3 Public Access Block; `kms-cmk-baseline.yaml` — reusable customer-managed key for encryption at rest |
+| `incident-response/` | IR | `incident-notifications.yaml` — aggregated SNS topic for high-severity GuardDuty/Security Hub findings |
 
 See `../docs/control-mapping.md` for template-to-control detail.

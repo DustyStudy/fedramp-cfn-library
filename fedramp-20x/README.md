@@ -20,15 +20,19 @@ guidance at:
 
 ## Folders (by KSI category)
 
-| Folder | KSI Category |
-|---|---|
-| `ksi-cna/` | Cloud Native Architecture |
-| `ksi-iam/` | Identity and Access Management |
-| `ksi-mla/` | Monitoring, Logging and Auditing |
-| `ksi-cnbc/` | Configuration and Network Boundary Controls |
-| `ksi-svc/` | Service Configuration |
-| `ksi-inr/` | Incident Response |
+| Folder | KSI Category | Existing templates that already satisfy it |
+|---|---|---|
+| `ksi-cna/` | Cloud Native Architecture | *(none yet — this category is largely architectural and less template-driven)* |
+| `ksi-iam/` | Identity and Access Management | `moderate/iam-access-control/access-control-baseline.yaml`, `modules/iam-password-policy.yaml` |
+| `ksi-mla/` | Monitoring, Logging and Auditing | `modules/org-cloudtrail.yaml`, `modules/guardduty-org.yaml`, `modules/security-hub-org.yaml`, `moderate/logging-monitoring/cis-metric-alarms.yaml` |
+| `ksi-cnbc/` | Configuration and Network Boundary Controls | `modules/config-conformance-pack.yaml`, `moderate/network-boundary/vpc-flow-logs.yaml`, `moderate/network-boundary/default-security-group-lockdown.yaml`, `moderate/data-protection/s3-account-public-access-block.yaml` |
+| `ksi-svc/` | Service Configuration | `moderate/data-protection/s3-account-public-access-block.yaml`, `moderate/data-protection/kms-cmk-baseline.yaml` |
+| `ksi-inr/` | Incident Response | `modules/guardduty-org.yaml`, `moderate/incident-response/incident-notifications.yaml` |
 
 Many of `../modules/` templates already satisfy specific KSIs (see the
 mapping table in each module's header comment and in
 `../docs/control-mapping.md`) — check there before building something new.
+This table is a starting point for which existing template to point to when
+assembling KSI evidence; it is not a substitute for reading the actual KSI
+definitions, since 20x's specific validation method for each indicator may
+expect something more precise than "a relevant control exists."

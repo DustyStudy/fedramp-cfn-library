@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Central incident-notification SNS topic that aggregates high-severity
+  findings from GuardDuty and Security Hub into a single feed for incident
+  response tooling (ticketing system, SOAR, on-call paging). Complements
+  the per-service topics in modules/guardduty-org.yaml — deploy this
+  alongside them if you want one aggregated feed rather than several
+  separate ones.
+
+  Control mapping:
+    Rev5 (Moderate/High): IR-4, IR-5, IR-6
+    FedRAMP 20x: KSI-INR-01 (incident detection capability), KSI-INR-02 (incident response process)
+
+Parameters:
+  GuardDutySeverityThreshold:
+    Type: Number
+    Default: 7
+    MinValue: 0
+    MaxValue: 8.9
+    Description: >
+      Minimum GuardDuty finding severity to route here (7.0+ is High per
+      GuardDuty's severity scale; 4.0-6.9 is Medium, 0.1-3.9 is Low).
+
+Resources:
+  IncidentNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: security-incident-notifications
+      KmsMasterKeyId: alias/aws/sns
+
+  IncidentNotificationTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref IncidentNotificationTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref IncidentNotificationTopic
+
+  GuardDutyHighSeverityRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: incident-guardduty-high-severity
+      Description: Routes GuardDuty findings at or above the configured severity threshold to the incident topic.
+      EventPattern:
+        source:
+          - aws.guardduty
+        detail-type:
+          - GuardDuty Finding
+        detail:
+          severity:
+            - numeric: ['>=', !Ref GuardDutySeverityThreshold]
+      State: ENABLED
+      Targets:
+        - Arn: !Ref IncidentNotificationTopic
+          Id: GuardDutyHighSeverityTarget
+
+  SecurityHubCriticalHighRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: incident-securityhub-critical-high
+      Description: Routes Security Hub findings with CRITICAL or HIGH label and an active workflow status to the incident topic.
+      EventPattern:
+        source:
+          - aws.securityhub
+        detail-type:
+          - Security Hub Findings - Imported
+        detail:
+          findings:
+            Severity:
+              Label:
+                - CRITICAL
+                - HIGH
+            Workflow:
+              Status:
+                - NEW
+      State: ENABLED
+      Targets:
+        - Arn: !Ref IncidentNotificationTopic
+          Id: SecurityHubCriticalHighTarget
+
+Outputs:
+  IncidentNotificationTopicArn:
+    Description: >
+      Central SNS topic for high-severity security findings — subscribe
+      your ticketing system, SOAR pipeline, or on-call paging integration.
+    Value: !Ref IncidentNotificationTopic

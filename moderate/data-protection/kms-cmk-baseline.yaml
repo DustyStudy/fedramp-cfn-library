@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Reusable customer-managed KMS key (CMK) with rotation enabled, for
+  encrypting data at rest in services that don't warrant a dedicated key
+  (general-purpose S3 buckets, EBS volumes, RDS instances, etc). Deploy one
+  per workload or data-classification tier rather than sharing a single key
+  across unrelated systems.
+
+  Control mapping:
+    Rev5 (Moderate/High): SC-12, SC-13, SC-28
+    FedRAMP 20x: KSI-SVC-02 (encryption at rest)
+
+Parameters:
+  KeyAlias:
+    Type: String
+    Description: Alias for the key (without the 'alias/' prefix), e.g. 'app-data' or 'workload-x'.
+
+  AdminRoleArn:
+    Type: String
+    Description: >
+      ARN of an IAM role/user that should be able to administer this key
+      (rotate, disable, schedule deletion) beyond the account root. Leave
+      blank to grant only the account root.
+    Default: ''
+
+  KeyUserRoleArns:
+    Type: CommaDelimitedList
+    Description: >
+      Comma-separated ARNs of IAM roles that should be able to use this key
+      to encrypt/decrypt data (e.g. an application's execution role).
+    Default: ''
+
+Conditions:
+  HasAdminRole: !Not [!Equals [!Ref AdminRoleArn, '']]
+  HasKeyUsers: !Not [!Equals [!Select [0, !Ref KeyUserRoleArns], '']]
+
+Resources:
+  Cmk:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub 'Customer-managed key for ${KeyAlias}'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - !If
+            - HasAdminRole
+            - Sid: AllowDesignatedKeyAdmin
+              Effect: Allow
+              Principal:
+                AWS: !Ref AdminRoleArn
+              Action:
+                - kms:Create*
+                - kms:Describe*
+                - kms:Enable*
+                - kms:List*
+                - kms:Put*
+                - kms:Update*
+                - kms:Revoke*
+                - kms:Disable*
+                - kms:Get*
+                - kms:Delete*
+                - kms:TagResource
+                - kms:UntagResource
+                - kms:ScheduleKeyDeletion
+                - kms:CancelKeyDeletion
+              Resource: '*'
+            - !Ref 'AWS::NoValue'
+          - !If
+            - HasKeyUsers
+            - Sid: AllowKeyUsage
+              Effect: Allow
+              Principal:
+                AWS: !Ref KeyUserRoleArns
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:ReEncrypt*
+                - kms:GenerateDataKey*
+                - kms:DescribeKey
+              Resource: '*'
+            - !Ref 'AWS::NoValue'
+
+  CmkAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${KeyAlias}'
+      TargetKeyId: !Ref Cmk
+
+Outputs:
+  KeyId:
+    Description: KMS key ID
+    Value: !Ref Cmk
+  KeyArn:
+    Description: KMS key ARN
+    Value: !GetAtt Cmk.Arn
+  KeyAlias:
+    Description: KMS key alias
+    Value: !Ref CmkAlias

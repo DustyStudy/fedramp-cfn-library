@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Strips all ingress and egress rules from a VPC's default security group
+  (CIS 5.3 / 4.3-equivalent — the default security group should never be
+  used, and should permit no traffic). CloudFormation cannot manage the
+  default security group directly (it can't be created or deleted, only
+  its rules modified), so this uses a Lambda-backed custom resource that
+  calls the EC2 API directly.
+
+  Control mapping:
+    Rev5 (Moderate/High): SC-7, CM-7
+    FedRAMP 20x: KSI-CNBC-02 (network boundary controls)
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC whose default security group should be locked down.
+
+Resources:
+  DefaultSgLockdownDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: default-sg-lockdown-dlq
+      KmsMasterKeyId: alias/aws/sqs
+      MessageRetentionPeriod: 1209600
+
+  DefaultSgLockdownLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: LockdownDefaultSecurityGroup
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeSecurityGroups
+                  - ec2:RevokeSecurityGroupIngress
+                  - ec2:RevokeSecurityGroupEgress
+                # These EC2 actions don't support resource-level
+                # permissions when scoped by security group ARN in all
+                # partitions/regions consistently — Resource: '*' is
+                # required.
+                Resource: '*'
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt DefaultSgLockdownDLQ.Arn
+
+  DefaultSgLockdownFunction:
+    Type: AWS::Lambda::Function
+    Metadata:
+      checkov:
+        skip:
+          - id: "CKV_AWS_117"
+            comment: >-
+              This function only calls the EC2 API (control plane) and
+              CloudFormation's callback URL — no VPC-resident resources
+              are touched. Placing it in a VPC would require a NAT
+              gateway or VPC endpoints purely to reach public AWS API
+              endpoints, adding cost and failure modes with no security
+              benefit.
+    Properties:
+      FunctionName: default-sg-lockdown-custom-resource
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 30
+      ReservedConcurrentExecutions: 1
+      DeadLetterConfig:
+        TargetArn: !GetAtt DefaultSgLockdownDLQ.Arn
+      Role: !GetAtt DefaultSgLockdownLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import urllib.request
+
+
+          def send_response(event, context, status, reason=None):
+              body = json.dumps({
+                  'Status': status,
+                  'Reason': reason or f'See CloudWatch Logs: {context.log_stream_name}',
+                  'PhysicalResourceId': event.get('ResourceProperties', {}).get('VpcId', 'default-sg-lockdown'),
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': {}
+              }).encode('utf-8')
+              req = urllib.request.Request(event['ResponseURL'], data=body, method='PUT')
+              req.add_header('Content-Type', '')
+              req.add_header('Content-Length', str(len(body)))
+              urllib.request.urlopen(req)
+
+
+          def handler(event, context):
+              try:
+                  if event['RequestType'] in ('Create', 'Update'):
+                      vpc_id = event['ResourceProperties']['VpcId']
+                      client = boto3.client('ec2')
+                      groups = client.describe_security_groups(
+                          Filters=[
+                              {'Name': 'group-name', 'Values': ['default']},
+                              {'Name': 'vpc-id', 'Values': [vpc_id]},
+                          ]
+                      )['SecurityGroups']
+                      for group in groups:
+                          group_id = group['GroupId']
+                          if group.get('IpPermissions'):
+                              client.revoke_security_group_ingress(
+                                  GroupId=group_id,
+                                  IpPermissions=group['IpPermissions']
+                              )
+                          if group.get('IpPermissionsEgress'):
+                              client.revoke_security_group_egress(
+                                  GroupId=group_id,
+                                  IpPermissions=group['IpPermissionsEgress']
+                              )
+                  # On stack deletion, intentionally do NOT restore the
+                  # default security group's original rules — leaving it
+                  # locked down is the safe default, and re-opening it on
+                  # stack deletion would silently reintroduce the exact
+                  # exposure this template exists to close.
+                  send_response(event, context, 'SUCCESS')
+              except Exception as e:
+                  send_response(event, context, 'FAILED', reason=str(e))
+
+  DefaultSgLockdown:
+    Type: Custom::DefaultSecurityGroupLockdown
+    Properties:
+      ServiceToken: !GetAtt DefaultSgLockdownFunction.Arn
+      VpcId: !Ref VpcId
