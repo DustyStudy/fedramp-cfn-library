@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Hardened EKS Cluster with Secrets Encryption, Private Endpoints & Control Plane Logging'
+
+Parameters:
+  ClusterName:
+    Type: String
+    Description: 'Name of the EKS Cluster'
+
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: 'Private Subnet IDs for EKS Cluster ENIs'
+
+  KubernetesVersion:
+    Type: String
+    Default: '1.30'
+    Description: 'Kubernetes version'
+
+Resources:
+  EKSSecretsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'Dedicated KMS CMK for EKS Kubernetes Secrets Envelope Encryption'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+  EKSClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonEKSClusterPolicy'
+
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Ref ClusterName
+      Version: !Ref KubernetesVersion
+      RoleArn: !GetAtt EKSClusterRole.Arn
+      Logging:
+        ClusterLogging:
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
+      EncryptionConfig:
+        - Provider:
+            KeyArn: !GetAtt EKSSecretsKey.Arn
+          Resources:
+            - secrets
+      ResourcesVpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        EndpointPrivateAccess: true
+        EndpointPublicAccess: false
+
+Outputs:
+  ClusterArn:
+    Value: !GetAtt EKSCluster.Arn
+  ClusterEndpoint:
+    Value: !GetAtt EKSCluster.Endpoint

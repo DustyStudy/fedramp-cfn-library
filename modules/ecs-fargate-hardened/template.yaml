@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Hardened ECS Fargate Cluster with Container Insights and KMS Logging'
+
+Parameters:
+  ClusterName:
+    Type: String
+    Description: 'Name of the ECS Cluster'
+
+  LogRetentionDays:
+    Type: Number
+    Default: 365
+    Description: 'Log retention in days'
+
+Resources:
+  ECSKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS Key for ECS CloudWatch and Exec logging'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+  ECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/ecs/${ClusterName}'
+      RetentionInDays: !Ref LogRetentionDays
+      KmsKeyId: !GetAtt ECSKmsKey.Arn
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ClusterName
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Configuration:
+        ExecuteCommandConfiguration:
+          Logging: OVERRIDE
+          KmsKeyId: !GetAtt ECSKmsKey.Arn
+          LogConfiguration:
+            CloudWatchLogGroupName: !Ref ECSLogGroup
+
+Outputs:
+  ClusterArn:
+    Value: !GetAtt ECSCluster.Arn
