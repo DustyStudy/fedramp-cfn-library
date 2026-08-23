@@ -49,6 +49,13 @@ Resources:
           ScanEc2InstanceWithFindings:
             EbsVolumes: true
 
+  GuardDutyOrgConfigDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: guardduty-org-config-dlq
+      KmsMasterKeyId: alias/aws/sqs
+      MessageRetentionPeriod: 1209600
+
   GuardDutyOrgConfigLambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -74,14 +81,30 @@ Resources:
                 # DetectorId in the request body, not by IAM resource ARN —
                 # these actions don't support resource-level permissions.
                 Resource: '*'
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt GuardDutyOrgConfigDLQ.Arn
 
   GuardDutyOrgConfigFunction:
     Type: AWS::Lambda::Function
+    Metadata:
+      checkov:
+        skip:
+          - id: "CKV_AWS_117"
+            comment: >-
+              This function only calls AWS control-plane APIs (GuardDuty,
+              CloudFormation's callback URL) — no VPC-resident resources are
+              touched. Placing it in a VPC would require a NAT gateway or
+              VPC endpoints purely to reach public AWS API endpoints, adding
+              cost and failure modes with no security benefit.
     Properties:
       FunctionName: guardduty-org-config-custom-resource
       Handler: index.handler
       Runtime: python3.12
       Timeout: 30
+      ReservedConcurrentExecutions: 1
+      DeadLetterConfig:
+        TargetArn: !GetAtt GuardDutyOrgConfigDLQ.Arn
       Role: !GetAtt GuardDutyOrgConfigLambdaRole.Arn
       Code:
         ZipFile: |
