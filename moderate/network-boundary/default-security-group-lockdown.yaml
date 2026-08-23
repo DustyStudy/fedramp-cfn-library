@@ -44,13 +44,18 @@ Resources:
               - Effect: Allow
                 Action:
                   - ec2:DescribeSecurityGroups
+                # Describe/List actions don't support resource-level
+                # permissions — Resource: '*' is required here, but this
+                # statement is read-only.
+                Resource: '*'
+              - Effect: Allow
+                Action:
                   - ec2:RevokeSecurityGroupIngress
                   - ec2:RevokeSecurityGroupEgress
-                # These EC2 actions don't support resource-level
-                # permissions when scoped by security group ARN in all
-                # partitions/regions consistently — Resource: '*' is
-                # required.
-                Resource: '*'
+                Resource: !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*'
+                Condition:
+                  ArnEquals:
+                    'ec2:Vpc': !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:vpc/${VpcId}'
               - Effect: Allow
                 Action: sqs:SendMessage
                 Resource: !GetAtt DefaultSgLockdownDLQ.Arn
