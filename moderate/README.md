@@ -7,8 +7,8 @@ underpin nearly every control family below.
 
 | Folder | Control Family | Status |
 |---|---|---|
-| `logging-monitoring/` | AU | Uses `modules/org-cloudtrail.yaml` as its base |
-| `iam-access-control/` | AC, IA | Planned |
+| `logging-monitoring/` | AU | `cis-metric-alarms.yaml` — 14 CIS/Security Hub CloudWatch metric-filter + alarm pairs (root usage, unauthorized API calls, console sign-in without MFA, IAM/CloudTrail/Config/S3/security-group/NACL/gateway/route-table/VPC changes), built on `modules/org-cloudtrail.yaml`'s log group |
+| `iam-access-control/` | AC, IA | `access-control-baseline.yaml` — Access Analyzer (external + unused access), permission boundary, enforced-MFA group, root usage alerting |
 | `network-boundary/` | SC | Planned |
 | `data-protection/` | SC-13, SC-28, MP | Planned |
 | `incident-response/` | IR | Planned |

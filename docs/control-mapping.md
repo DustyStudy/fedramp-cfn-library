@@ -34,6 +34,32 @@ code instead of a manual console/CLI step.
 | `data-protection/` | SC-13, SC-28, MP (Media Protection) |
 | `incident-response/` | IR (Incident Response) |
 
+### logging-monitoring/cis-metric-alarms.yaml
+
+All 14 filter patterns are copied verbatim from AWS's Security Hub CSPM
+documentation — the corresponding Security Hub checks (CloudWatch.1 through
+CloudWatch.14) fail if the exact prescribed pattern isn't used, so none of
+these are paraphrased.
+
+| Alarm | Rev5 Controls | 20x KSI |
+|---|---|---|
+| Root account usage | AC-6(5), AU-6 | KSI-IAM-02, KSI-MLA-01 |
+| Unauthorized API calls | AU-6, SI-4 | KSI-MLA-04 |
+| Console sign-in without MFA | IA-2(1), AU-6 | KSI-IAM-01 |
+| IAM policy changes | AC-6, AU-6 | KSI-IAM-03 |
+| CloudTrail config changes | AU-12, AU-6 | KSI-MLA-01 |
+| Console auth failures | AU-6, SI-4 | KSI-MLA-04 |
+| CMK disable/scheduled deletion | SC-12, SC-28 | KSI-CNBC-02 |
+| S3 bucket policy changes | AC-3, AU-6 | KSI-CNBC-01 |
+| Config configuration changes | CM-6, AU-6 | KSI-CNBC-01 |
+| Security group changes | CM-6, SC-7 | KSI-CNBC-02 |
+| NACL changes | CM-6, SC-7 | KSI-CNBC-02 |
+| Network gateway changes | SC-7, AU-6 | KSI-CNBC-02 |
+| Route table changes | SC-7, AU-6 | KSI-CNBC-02 |
+| VPC changes | SC-7, CM-6 | KSI-CNBC-02 |
+
+*(Fill in remaining folder mappings as templates are added.)*
+
 ### iam-access-control/access-control-baseline.yaml
 
 | Resource | Rev5 Controls | 20x KSI |
@@ -47,8 +73,6 @@ code instead of a manual console/CLI step.
 Note: the require-MFA group governs IAM *users* only — SSO/Identity Center
 users authenticate through your IdP, so their MFA enforcement lives there,
 not in this template.
-
-*(Fill in remaining folder mappings as templates are added.)*
 
 ## high/
 
