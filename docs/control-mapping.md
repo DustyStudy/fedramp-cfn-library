@@ -16,6 +16,14 @@ expectations.
 | `security-hub-org.yaml` | CA-7, RA-5, SI-4 | KSI-MLA-04 |
 | `iam-password-policy.yaml` | IA-5, AC-2, AC-7 | KSI-IAM-01 |
 
+**Note:** `iam-password-policy.yaml` and `guardduty-org.yaml` both use a
+small Lambda-backed custom resource internally. Neither the account
+password policy nor GuardDuty organization auto-enrollment has a native
+CloudFormation resource type — both can only be set via a direct API call
+(`iam:UpdateAccountPasswordPolicy` and `guardduty:UpdateOrganizationConfiguration`
+respectively), so a custom resource is the standard way to manage them as
+code instead of a manual console/CLI step.
+
 ## moderate/
 
 | Folder | Rev5 Control Family |
@@ -26,7 +34,21 @@ expectations.
 | `data-protection/` | SC-13, SC-28, MP (Media Protection) |
 | `incident-response/` | IR (Incident Response) |
 
-*(Fill in specific template-to-control mappings here as templates are added.)*
+### iam-access-control/access-control-baseline.yaml
+
+| Resource | Rev5 Controls | 20x KSI |
+|---|---|---|
+| IAM Access Analyzer (external access) | AC-3, AC-6 | KSI-IAM-03 |
+| IAM Access Analyzer (unused access) | AC-2(3) | KSI-IAM-03 |
+| Developer permission boundary | AC-6, AC-6(1) | KSI-IAM-01 |
+| Require-MFA IAM group policy | IA-2(1), AC-7 | KSI-IAM-01 |
+| Root usage EventBridge rule + SNS | AC-6(5), AU-6 | KSI-IAM-02, KSI-MLA-01 |
+
+Note: the require-MFA group governs IAM *users* only — SSO/Identity Center
+users authenticate through your IdP, so their MFA enforcement lives there,
+not in this template.
+
+*(Fill in remaining folder mappings as templates are added.)*
 
 ## high/
 

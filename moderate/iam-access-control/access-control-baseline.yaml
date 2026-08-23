@@ -31,13 +31,6 @@ Parameters:
     Type: String
     Default: root-account-usage-alerts
 
-  MaxSessionDurationSeconds:
-    Type: Number
-    Default: 3600
-    MinValue: 900
-    MaxValue: 43200
-    Description: Maximum session duration for the permission boundary's intended roles (AC-12 adjacent).
-
 Resources:
   # --- IAM Access Analyzer: external + unused access ---
   ExternalAccessAnalyzer:
@@ -61,6 +54,19 @@ Resources:
   # ceiling allows. It does not grant permissions itself — it caps them.
   DeveloperPermissionBoundary:
     Type: AWS::IAM::ManagedPolicy
+    Metadata:
+      checkov:
+        skip:
+          - id: "CKV_AWS_107"
+            comment: "Intentional: this is a permission BOUNDARY (a ceiling), not a grant. It's meant to be broad; the actual least-privilege grant lives in whatever identity policy the boundary is attached to."
+          - id: "CKV_AWS_108"
+            comment: "Same as CKV_AWS_107 — boundary is a ceiling, not a grant. Data exfiltration risk is governed by the attached identity policy, which this boundary can only narrow, never widen."
+          - id: "CKV_AWS_109"
+            comment: "Same as CKV_AWS_107 — this is the boundary's intended shape."
+          - id: "CKV_AWS_110"
+            comment: "The DenyPrivilegeEscalationViaIAM statement below specifically closes IAM-based escalation paths; the broad NotAction grant is what a boundary is supposed to look like."
+          - id: "CKV_AWS_111"
+            comment: "Same as CKV_AWS_107 — boundary is a ceiling, not a grant."
     Properties:
       ManagedPolicyName: developer-permission-boundary
       Description: >
