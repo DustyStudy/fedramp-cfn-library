@@ -11,6 +11,47 @@ Parameters:
     Default: 'REGIONAL'
 
 Resources:
+  # KMS CMK for WAF Logging
+  WafLogsKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS Key for WAF CloudWatch Log Group'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          # Required: CloudWatch Logs makes its own encrypt/decrypt calls
+          # as the logs service. Without this statement, log delivery to
+          # a KMS-encrypted log group fails outright.
+          - Sid: AllowCloudWatchLogsEncrypt
+            Effect: Allow
+            Principal:
+              Service: !Sub 'logs.${AWS::Region}.amazonaws.com'
+            Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Resource: '*'
+            Condition:
+              ArnLike:
+                'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*'
+
+  # WAF requires the destination log group name to start with 'aws-waf-logs-'
+  WafLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub 'aws-waf-logs-${Environment}'
+      RetentionInDays: 365
+      KmsKeyId: !GetAtt WafLogsKmsKey.Arn
+
   WebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
@@ -74,6 +115,13 @@ Resources:
             CloudWatchMetricsEnabled: true
             MetricName: RateLimitMetric
             SampledRequestsEnabled: true
+
+  WafLoggingConfiguration:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Properties:
+      ResourceArn: !GetAtt WebACL.Arn
+      LogDestinationConfigs:
+        - !GetAtt WafLogGroup.Arn
 
 Outputs:
   WebACLArn:

@@ -31,19 +31,27 @@ Resources:
           ToPort: 443
           CidrIp: !Ref VpcCidr
 
-  # KMS FIPS Endpoint
-  KmsEndpoint:
+  # KMS FIPS Endpoint — kms-fips is a genuine, distinct VPC endpoint
+  # service name (confirmed against AWS's PrivateLink service list).
+  KmsFipsEndpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VpcId
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.kms'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.kms-fips'
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
       SubnetIds: !Ref PrivateSubnetIds
       SecurityGroupIds:
         - !GetAtt EndpointSecurityGroup.GroupId
 
-  # Secrets Manager FIPS Endpoint
+  # Secrets Manager Endpoint — NOTE: Secrets Manager has no distinct
+  # '-fips' suffixed VPC endpoint service name as of this writing (unlike
+  # KMS/EC2/STS). Where AWS offers FIPS access to Secrets Manager, it's
+  # via an alternate FIPS-labeled private DNS hostname on this SAME
+  # endpoint, which is a client/application-level configuration choice,
+  # not a separate resource this template can create. Verify current
+  # availability against https://docs.aws.amazon.com/vpc/latest/privatelink/aws-services-privatelink-support.html
+  # before assuming this endpoint alone satisfies a FIPS requirement.
   SecretsManagerEndpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
@@ -55,7 +63,8 @@ Resources:
       SecurityGroupIds:
         - !GetAtt EndpointSecurityGroup.GroupId
 
-  # CloudWatch Logs FIPS Endpoint
+  # CloudWatch Logs Endpoint — same caveat as Secrets Manager above: no
+  # distinct '-fips' suffixed service name exists for 'logs'.
   LogsEndpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
@@ -67,12 +76,13 @@ Resources:
       SecurityGroupIds:
         - !GetAtt EndpointSecurityGroup.GroupId
 
-  # STS FIPS Endpoint
-  StsEndpoint:
+  # STS FIPS Endpoint — sts-fips is a genuine, distinct VPC endpoint
+  # service name (confirmed against AWS's PrivateLink service list).
+  StsFipsEndpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VpcId
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sts'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sts-fips'
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
       SubnetIds: !Ref PrivateSubnetIds
@@ -91,7 +101,9 @@ Resources:
 Outputs:
   EndpointSecurityGroupId:
     Value: !GetAtt EndpointSecurityGroup.GroupId
-  KmsEndpointId:
-    Value: !Ref KmsEndpoint
+  KmsFipsEndpointId:
+    Value: !Ref KmsFipsEndpoint
   SecretsManagerEndpointId:
     Value: !Ref SecretsManagerEndpoint
+  StsFipsEndpointId:
+    Value: !Ref StsFipsEndpoint

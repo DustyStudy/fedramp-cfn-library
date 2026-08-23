@@ -7,6 +7,14 @@ Parameters:
     Description: 'Name of the ECR Repository'
 
 Resources:
+  # Note: unlike CloudWatch Logs, ECR image push/pull operations authorize
+  # through the calling IAM principal (the developer, CI/CD role, or task
+  # execution role doing docker push/pull) rather than through a fixed
+  # service-principal grant on the key. Whoever needs to push or pull
+  # images from this repository must have kms:GenerateDataKey/kms:Decrypt
+  # on this key — via an IAM identity policy on their own role, or an
+  # additional statement here — which this template doesn't grant on its
+  # own since it doesn't know which principals need access.
   ECRKmsKey:
     Type: AWS::KMS::Key
     Properties:
