@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Hardened PostgreSQL RDS Instance with KMS CMK, Multi-AZ, TLS Enforcement & Audit Logging'
+
+Parameters:
+  DBName:
+    Type: String
+    Default: 'fedramppostgres'
+    Description: 'PostgreSQL database identifier'
+
+  DBInstanceClass:
+    Type: String
+    Default: 'db.r6g.large'
+    Description: 'DB compute instance class'
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: 'Target VPC ID'
+
+  VpcCidr:
+    Type: String
+    Description: 'VPC CIDR allowed to connect on port 5432'
+
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: 'List of private isolated subnets across multiple AZs'
+
+Resources:
+  RDSKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS Key for RDS Database Storage and Performance Insights Encryption'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Security group restricting PostgreSQL DB traffic'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - Description: 'Inbound TLS from VPC CIDR'
+          IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Ref VpcCidr
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: 'Private subnets for RDS'
+      SubnetIds: !Ref PrivateSubnetIds
+
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: 'FedRAMP compliant parameter group for PostgreSQL'
+      Family: postgres16
+      Parameters:
+        rds.force_ssl: '1'
+        log_connections: '1'
+        log_disconnections: '1'
+        log_statement: 'ddl'
+
+  RDSMonitoringRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: monitoring.rds.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Ref DBName
+      Engine: postgres
+      EngineVersion: '16.3'
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: '100'
+      MaxAllocatedStorage: 500
+      StorageType: gp3
+      StorageEncrypted: true
+      KmsKeyId: !GetAtt RDSKmsKey.Arn
+      MultiAZ: true
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !GetAtt DBSecurityGroup.GroupId
+      DBParameterGroupName: !Ref DBParameterGroup
+      MasterUsername: dbadmin
+      ManageMasterUserPassword: true
+      MasterUserSecret:
+        KmsKeyId: !GetAtt RDSKmsKey.Arn
+      EnableIAMDatabaseAuthentication: true
+      AutoMinorVersionUpgrade: true
+      DeletionProtection: true
+      CopyTagsToSnapshot: true
+      BackupRetentionPeriod: 35
+      MonitoringInterval: 60
+      MonitoringRoleArn: !GetAtt RDSMonitoringRole.Arn
+      EnablePerformanceInsights: true
+      PerformanceInsightsKMSKeyId: !GetAtt RDSKmsKey.Arn
+      PerformanceInsightsRetentionPeriod: 731
+      EnableCloudwatchLogsExports:
+        - postgresql
+        - upgrade
+
+Outputs:
+  DBEndpoint:
+    Value: !GetAtt DBInstance.Endpoint.Address
+  DBArn:
+    Value: !GetAtt DBInstance.Arn
