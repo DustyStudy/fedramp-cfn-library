@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'FIPS 140-2/3 Compliant VPC Endpoints and PrivateLink Infrastructure'
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: 'Target VPC ID'
+
+  VpcCidr:
+    Type: String
+    Description: 'VPC CIDR block allowed to communicate with endpoints'
+
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: 'Private subnets where Interface Endpoints reside'
+
+  RouteTableIds:
+    Type: List<String>
+    Description: 'Route Table IDs for S3 Gateway Endpoint'
+
+Resources:
+  EndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Security group for FIPS-validated VPC interface endpoints'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - Description: 'Inbound TLS from VPC CIDR'
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidr
+
+  # KMS FIPS Endpoint
+  KmsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.kms'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref PrivateSubnetIds
+      SecurityGroupIds:
+        - !GetAtt EndpointSecurityGroup.GroupId
+
+  # Secrets Manager FIPS Endpoint
+  SecretsManagerEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref PrivateSubnetIds
+      SecurityGroupIds:
+        - !GetAtt EndpointSecurityGroup.GroupId
+
+  # CloudWatch Logs FIPS Endpoint
+  LogsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref PrivateSubnetIds
+      SecurityGroupIds:
+        - !GetAtt EndpointSecurityGroup.GroupId
+
+  # STS FIPS Endpoint
+  StsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sts'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref PrivateSubnetIds
+      SecurityGroupIds:
+        - !GetAtt EndpointSecurityGroup.GroupId
+
+  # S3 Gateway Endpoint
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+      RouteTableIds: !Ref RouteTableIds
+
+Outputs:
+  EndpointSecurityGroupId:
+    Value: !GetAtt EndpointSecurityGroup.GroupId
+  KmsEndpointId:
+    Value: !Ref KmsEndpoint
+  SecretsManagerEndpointId:
+    Value: !Ref SecretsManagerEndpoint
