@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'FedRAMP Shared Organization Boundary SCP Module'
+
+Parameters:
+  PolicyName:
+    Type: String
+    Default: 'fedramp-authorization-boundary-scp'
+    Description: 'Name of the Service Control Policy'
+
+  TargetId:
+    Type: String
+    Default: ''
+    Description: 'Optional OU or Account ID to attach the policy'
+
+Conditions:
+  HasTargetId: !Not [!Equals [!Ref TargetId, '']]
+
+Resources:
+  FedRAMPBoundarySCP:
+    Type: AWS::Organizations::Policy
+    Properties:
+      Name: !Ref PolicyName
+      Description: 'FedRAMP Authorization Boundary Guardrails'
+      Type: SERVICE_CONTROL_POLICY
+      TargetIds: !If [HasTargetId, [!Ref TargetId], !Ref 'AWS::NoValue']
+      Content:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyDisablingSecurityServices
+            Effect: Deny
+            Action:
+              - 'cloudtrail:DeleteTrail'
+              - 'cloudtrail:StopLogging'
+              - 'cloudtrail:UpdateTrail'
+              - 'config:DeleteConfigRule'
+              - 'config:DeleteConfigurationRecorder'
+              - 'config:StopConfigurationRecorder'
+              - 'guardduty:DeleteDetector'
+              - 'guardduty:DisassociateFromMasterAccount'
+              - 'guardduty:UpdateDetector'
+              - 'securityhub:DeleteHub'
+              - 'securityhub:DisableSecurityHub'
+              - 'kms:ScheduleKeyDeletion'
+              - 'kms:DisableKey'
+            Resource: '*'
+
+          - Sid: DenyModifyingAccountBaseline
+            Effect: Deny
+            Action:
+              - 'organizations:LeaveOrganization'
+              - 's3:DeleteAccountPublicAccessBlock'
+              - 's3:PutAccountPublicAccessBlock'
+              - 'ec2:DisableEbsEncryptionByDefault'
+            Resource: '*'
+
+          - Sid: DenyUnapprovedRegions
+            Effect: Deny
+            NotAction:
+              - 'iam:*'
+              - 'organizations:*'
+              - 'route53:*'
+              - 'cloudfront:*'
+              - 'support:*'
+              - 'aws-portal:*'
+              - 'budgets:*'
+            Resource: '*'
+            Condition:
+              StringNotEquals:
+                'aws:RequestedRegion':
+                  - 'us-east-1'
+                  - 'us-west-2'
+
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Action:
+              - 's3:*'
+              - 'sqs:*'
+              - 'dynamodb:*'
+            Resource: '*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
+Outputs:
+  PolicyId:
+    Description: 'ID of the created SCP'
+    Value: !Ref FedRAMPBoundarySCP
+
+  PolicyArn:
+    Description: 'ARN of the created SCP'
+    Value: !GetAtt FedRAMPBoundarySCP.Arn
