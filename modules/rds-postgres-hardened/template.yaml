@@ -7,6 +7,11 @@ Parameters:
     Default: 'fedramppostgres'
     Description: 'PostgreSQL database identifier'
 
+  EngineVersion:
+    Type: String
+    Default: '16.6'
+    Description: 'PostgreSQL database engine version'
+
   DBInstanceClass:
     Type: String
     Default: 'db.r6g.large'
@@ -87,7 +92,7 @@ Resources:
     Properties:
       DBInstanceIdentifier: !Ref DBName
       Engine: postgres
-      EngineVersion: '16'
+      EngineVersion: !Ref EngineVersion
       DBInstanceClass: !Ref DBInstanceClass
       AllocatedStorage: '100'
       MaxAllocatedStorage: 500
