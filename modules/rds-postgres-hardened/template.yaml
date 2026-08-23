@@ -87,7 +87,7 @@ Resources:
     Properties:
       DBInstanceIdentifier: !Ref DBName
       Engine: postgres
-      EngineVersion: '16.3'
+      EngineVersion: '16'
       DBInstanceClass: !Ref DBInstanceClass
       AllocatedStorage: '100'
       MaxAllocatedStorage: 500
@@ -120,6 +120,8 @@ Resources:
 
 Outputs:
   DBEndpoint:
+    Description: 'PostgreSQL Connection Endpoint Address'
     Value: !GetAtt DBInstance.Endpoint.Address
-  DBArn:
-    Value: !GetAtt DBInstance.Arn
+  DBInstanceArn:
+    Description: 'RDS DB Instance ARN'
+    Value: !GetAtt DBInstance.DBInstanceArn
