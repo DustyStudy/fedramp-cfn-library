@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Enables AWS Security Hub with the AWS Foundational Security Best Practices
+  and CIS AWS Foundations standards, plus organization auto-enrollment.
+  Deploy from the Security Hub delegated administrator account.
+
+  Control mapping:
+    Rev5 (Moderate/High): CA-7, RA-5, SI-4
+    FedRAMP 20x: KSI-MLA-04 (continuous security posture monitoring)
+
+Parameters:
+  AutoEnableStandardsForNewAccounts:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+
+Resources:
+  SecurityHub:
+    Type: AWS::SecurityHub::Hub
+    Properties:
+      EnableDefaultStandards: true
+      Tags:
+        Environment: security-baseline
+
+  SecurityHubOrgConfiguration:
+    Type: AWS::SecurityHub::OrganizationConfiguration
+    Properties:
+      AutoEnable: true
+      AutoEnableStandards: !If
+        - EnableStandardsCondition
+        - 'DEFAULT'
+        - 'NONE'
+
+Conditions:
+  EnableStandardsCondition: !Equals [!Ref AutoEnableStandardsForNewAccounts, 'true']
+
+Outputs:
+  SecurityHubArn:
+    Description: ARN of the Security Hub instance
+    Value: !Ref SecurityHub

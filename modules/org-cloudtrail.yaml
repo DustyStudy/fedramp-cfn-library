@@ -1,0 +1,213 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Organization-wide CloudTrail with log file validation, encryption, and
+  CloudWatch Logs integration. Deploy from the AWS Organizations management
+  account or a delegated administrator account for CloudTrail.
+
+  Control mapping:
+    Rev5 (Moderate/High): AU-2, AU-3, AU-6, AU-9, AU-11, AU-12, SC-28
+    FedRAMP 20x: KSI-MLA-01 (comprehensive logging), KSI-MLA-02 (log integrity)
+
+Parameters:
+  OrganizationId:
+    Type: String
+    Description: AWS Organizations ID (e.g. o-xxxxxxxxxx). Required for the bucket policy trust condition.
+    AllowedPattern: '^o-[a-z0-9]{10,32}$'
+
+  TrailName:
+    Type: String
+    Default: org-security-trail
+    Description: Name for the organization trail.
+
+  LogRetentionDays:
+    Type: Number
+    Default: 365
+    AllowedValues: [90, 180, 365, 545, 731, 1096, 1827, 3653]
+    Description: >
+      CloudWatch Logs retention. Moderate baseline typically expects >= 90
+      days readily available plus 1 year total; High baseline commonly
+      expects 3+ years total retention — confirm against your SSP.
+
+  S3LogRetentionDays:
+    Type: Number
+    Default: 2555
+    Description: >
+      S3 lifecycle retention in days for the long-term log archive
+      (default ~7 years). Adjust to your organization's records retention
+      schedule.
+
+Resources:
+  CloudTrailKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: CMK for encrypting the organization CloudTrail logs (SC-28, SC-13)
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: AllowCloudTrailEncrypt
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action:
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'aws:SourceOrgID': !Ref OrganizationId
+          - Sid: AllowCloudWatchLogsDecrypt
+            Effect: Allow
+            Principal:
+              Service: !Sub 'logs.${AWS::Region}.amazonaws.com'
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: '*'
+
+  CloudTrailKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${TrailName}-key'
+      TargetKeyId: !Ref CloudTrailKMSKey
+
+  TrailLogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${TrailName}-logs-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref CloudTrailKMSKey
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArchiveAndExpire
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 90
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 365
+                StorageClass: GLACIER
+            ExpirationInDays: !Ref S3LogRetentionDays
+
+  TrailLogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref TrailLogBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt TrailLogBucket.Arn
+            Condition:
+              StringEquals:
+                'aws:SourceOrgID': !Ref OrganizationId
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${TrailLogBucket.Arn}/AWSLogs/*'
+            Condition:
+              StringEquals:
+                's3:x-amz-acl': bucket-owner-full-control
+                'aws:SourceOrgID': !Ref OrganizationId
+          - Sid: DenyUnencryptedObjectUploads
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${TrailLogBucket.Arn}/*'
+            Condition:
+              StringNotEquals:
+                's3:x-amz-server-side-encryption': aws:kms
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt TrailLogBucket.Arn
+              - !Sub '${TrailLogBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
+  TrailLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/cloudtrail/${TrailName}'
+      RetentionInDays: !Ref LogRetentionDays
+      KmsKeyId: !GetAtt CloudTrailKMSKey.Arn
+
+  CloudTrailToCloudWatchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudTrailToCloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt TrailLogGroup.Arn
+
+  OrganizationTrail:
+    Type: AWS::CloudTrail::Trail
+    DependsOn: TrailLogBucketPolicy
+    Properties:
+      TrailName: !Ref TrailName
+      IsOrganizationTrail: true
+      IsMultiRegionTrail: true
+      IsLogging: true
+      EnableLogFileValidation: true
+      IncludeGlobalServiceEvents: true
+      S3BucketName: !Ref TrailLogBucket
+      KMSKeyId: !GetAtt CloudTrailKMSKey.Arn
+      CloudWatchLogsLogGroupArn: !GetAtt TrailLogGroup.Arn
+      CloudWatchLogsRoleArn: !GetAtt CloudTrailToCloudWatchRole.Arn
+      EventSelectors:
+        - ReadWriteType: All
+          IncludeManagementEvents: true
+          DataResources:
+            - Type: 'AWS::S3::Object'
+              Values: ['arn:aws:s3']
+
+Outputs:
+  TrailArn:
+    Description: ARN of the organization CloudTrail
+    Value: !GetAtt OrganizationTrail.Arn
+  LogBucketName:
+    Description: S3 bucket storing CloudTrail logs
+    Value: !Ref TrailLogBucket
+  LogGroupName:
+    Description: CloudWatch Logs group for real-time trail analysis
+    Value: !Ref TrailLogGroup
+  KMSKeyArn:
+    Description: KMS key used to encrypt trail logs
+    Value: !GetAtt CloudTrailKMSKey.Arn

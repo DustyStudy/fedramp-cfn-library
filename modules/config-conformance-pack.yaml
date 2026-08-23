@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Enables AWS Config with a continuous recorder and delivery channel, plus
+  the AWS-managed Operational Best Practices for FedRAMP Moderate
+  conformance pack. Deploy per-account (or via Config aggregator across the
+  organization).
+
+  Control mapping:
+    Rev5 (Moderate/High): CM-2, CM-6, CM-8, CA-7, RA-5
+    FedRAMP 20x: KSI-CNBC-01 (configuration management), KSI-CNBC-02 (change detection)
+
+Parameters:
+  ConfigBucketName:
+    Type: String
+    Description: >
+      Name for the S3 bucket storing AWS Config snapshots and history.
+      Leave blank to auto-generate a name.
+    Default: ''
+
+  ConformancePackTemplate:
+    Type: String
+    Default: 'Operational-Best-Practices-for-FedRAMP-Moderate.yaml'
+    Description: >
+      AWS-managed conformance pack sample template name. For High, review
+      the FedRAMP High sample pack (where published) or layer additional
+      Config rules on top of this baseline — the managed packs are updated
+      independently of this repo, so verify current availability at
+      https://docs.aws.amazon.com/config/latest/developerguide/conformancepack-sample-templates.html
+
+Conditions:
+  GenerateBucketName: !Equals [!Ref ConfigBucketName, '']
+
+Resources:
+  ConfigBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If
+        - GenerateBucketName
+        - !Sub 'aws-config-${AWS::AccountId}-${AWS::Region}'
+        - !Ref ConfigBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  ConfigBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ConfigBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSConfigBucketPermissionsCheck
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt ConfigBucket.Arn
+          - Sid: AWSConfigBucketDelivery
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${ConfigBucket.Arn}/AWSLogs/${AWS::AccountId}/Config/*'
+            Condition:
+              StringEquals:
+                's3:x-amz-acl': bucket-owner-full-control
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt ConfigBucket.Arn
+              - !Sub '${ConfigBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
+  ConfigRecorderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWS_ConfigRole
+      Policies:
+        - PolicyName: ConfigS3Delivery
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetBucketAcl
+                Resource:
+                  - !GetAtt ConfigBucket.Arn
+                  - !Sub '${ConfigBucket.Arn}/*'
+
+  ConfigRecorder:
+    Type: AWS::Config::ConfigurationRecorder
+    Properties:
+      Name: default
+      RoleARN: !GetAtt ConfigRecorderRole.Arn
+      RecordingGroup:
+        AllSupported: true
+        IncludeGlobalResourceTypes: true
+
+  ConfigDeliveryChannel:
+    Type: AWS::Config::DeliveryChannel
+    Properties:
+      Name: default
+      S3BucketName: !Ref ConfigBucket
+      ConfigSnapshotDeliveryProperties:
+        DeliveryFrequency: TwentyFour_Hours
+
+  FedRAMPConformancePack:
+    Type: AWS::Config::ConformancePack
+    DependsOn: ConfigDeliveryChannel
+    Properties:
+      ConformancePackName: fedramp-moderate-baseline
+      TemplateS3Uri: !Sub 's3://aws-configservice-conformancepack-templates-${AWS::Region}/${ConformancePackTemplate}'
+
+Outputs:
+  ConfigBucketName:
+    Description: S3 bucket storing AWS Config history and snapshots
+    Value: !Ref ConfigBucket
+  ConformancePackName:
+    Description: Name of the deployed conformance pack
+    Value: !Ref FedRAMPConformancePack

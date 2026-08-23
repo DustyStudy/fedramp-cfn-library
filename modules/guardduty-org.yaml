@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Enables Amazon GuardDuty with organization auto-enrollment for new
+  accounts. Deploy from the GuardDuty delegated administrator account.
+
+  Control mapping:
+    Rev5 (Moderate/High): SI-4, IR-4, RA-5
+    FedRAMP 20x: KSI-MLA-03 (threat detection), KSI-INR-01 (incident detection capability)
+
+Parameters:
+  FindingPublishingFrequency:
+    Type: String
+    Default: FIFTEEN_MINUTES
+    AllowedValues: [FIFTEEN_MINUTES, ONE_HOUR, SIX_HOURS]
+    Description: How often GuardDuty publishes findings to CloudWatch Events.
+
+  AutoEnableForNewAccounts:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Automatically enable GuardDuty for new accounts joining the organization.
+
+Resources:
+  GuardDutyDetector:
+    Type: AWS::GuardDuty::Detector
+    Properties:
+      Enable: true
+      FindingPublishingFrequency: !Ref FindingPublishingFrequency
+      DataSources:
+        S3Logs:
+          Enable: true
+        Kubernetes:
+          AuditLogs:
+            Enable: true
+        MalwareProtection:
+          ScanEc2InstanceWithFindings:
+            EbsVolumes: true
+
+  GuardDutyOrgConfiguration:
+    Type: AWS::GuardDuty::OrganizationConfiguration
+    Properties:
+      DetectorId: !Ref GuardDutyDetector
+      AutoEnable: !Ref AutoEnableForNewAccounts
+      DataSources:
+        S3Logs:
+          AutoEnable: true
+        Kubernetes:
+          AuditLogs:
+            AutoEnable: true
+        MalwareProtection:
+          ScanEc2InstanceWithFindings:
+            EbsVolumes:
+              AutoEnable: true
+
+  GuardDutyFindingsEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: guardduty-findings-to-sns
+      Description: Route GuardDuty findings of Medium severity or higher for alerting/incident response.
+      EventPattern:
+        source:
+          - aws.guardduty
+        detail-type:
+          - GuardDuty Finding
+        detail:
+          severity:
+            - numeric: ['>=', 4]
+      State: ENABLED
+      Targets:
+        - Arn: !Ref GuardDutyFindingsTopic
+          Id: GuardDutyFindingsTarget
+
+  GuardDutyFindingsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: guardduty-findings-medium-plus
+      KmsMasterKeyId: alias/aws/sns
+
+  GuardDutyFindingsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref GuardDutyFindingsTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref GuardDutyFindingsTopic
+
+Outputs:
+  DetectorId:
+    Description: GuardDuty detector ID
+    Value: !Ref GuardDutyDetector
+  FindingsTopicArn:
+    Description: >
+      SNS topic receiving Medium+ severity findings — subscribe your
+      incident response team or SOAR pipeline (see incident-response/ for IR
+      automation templates).
+    Value: !Ref GuardDutyFindingsTopic
