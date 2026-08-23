@@ -1,0 +1,33 @@
+name: FedRAMP CloudFormation CI & SAST
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate:
+    name: CFN-Lint & Checkov Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install CFN-Lint
+        run: pip install cfn-lint
+
+      - name: Run CFN-Lint
+        run: cfn-lint $(find . -type f \( -name "*.yaml" -o -name "*.yml" \) ! -path "./.github/*")
+
+      - name: Run Checkov Security SAST
+        uses: bridgecrewio/checkov-action@master
+        with:
+          framework: cloudformation
+          output_format: cli
+          soft_fail: false
