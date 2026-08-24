@@ -35,8 +35,19 @@ Resources:
               S3 server access logs must land in a bucket encrypted with
               SSE-S3, not SSE-KMS — that's an AWS platform restriction on
               the access-logging feature itself, not a choice made here.
+          - id: "CKV_AWS_144"
+            comment: >-
+              Cross-region replication for log durability is handled at
+              the account/org backup-policy level (see
+              modules/org-governance), not per-bucket in this lean,
+              per-VPC utility module — adding a required replica
+              bucket/region/IAM role here would substantially bloat what's
+              meant to be a simple module.
     Properties:
       BucketName: !Sub 'vpc-flow-logs-access-logs-${AWS::AccountId}-${AWS::Region}-${VpcId}'
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -52,6 +63,8 @@ Resources:
         Rules:
           - Id: ExpireAccessLogs
             Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
             ExpirationInDays: !Ref LogRetentionDays
 
   FlowLogAccessLogBucketPolicy:
@@ -117,8 +130,22 @@ Resources:
 
   FlowLogBucket:
     Type: AWS::S3::Bucket
+    Metadata:
+      checkov:
+        skip:
+          - id: "CKV_AWS_144"
+            comment: >-
+              Cross-region replication for log durability is handled at
+              the account/org backup-policy level (see
+              modules/org-governance), not per-bucket in this lean,
+              per-VPC utility module — adding a required replica
+              bucket/region/IAM role here would substantially bloat what's
+              meant to be a simple module.
     Properties:
       BucketName: !Sub 'vpc-flow-logs-${AWS::AccountId}-${AWS::Region}-${VpcId}'
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -140,6 +167,8 @@ Resources:
         Rules:
           - Id: ArchiveAndExpire
             Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
             Transitions:
               - TransitionInDays: 90
                 StorageClass: STANDARD_IA

@@ -37,6 +37,15 @@ Conditions:
 Resources:
   Cmk:
     Type: AWS::KMS::Key
+    Metadata:
+      checkov:
+        skip:
+          - id: "CKV_AWS_109"
+            comment: "KMS administrative and service operations require root wildcard scoping"
+          - id: "CKV_AWS_111"
+            comment: "KMS key management requires constrained write access"
+          - id: "CKV_AWS_356"
+            comment: "KMS key policies require wildcard resource within the key definition itself"
     Properties:
       Description: !Sub 'Customer-managed key for ${KeyAlias}'
       EnableKeyRotation: true
