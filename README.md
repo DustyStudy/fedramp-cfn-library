@@ -85,6 +85,9 @@ docs are aimed at that gap directly:
 - **`docs/CONTINUOUS-MONITORING.md`** — how this repo's templates feed
   FedRAMP's monthly/annual ConMon deliverables, and what ConMon requires
   that nothing here automates
+- **`docs/FEDRAMP-20X-CHEAT-SHEET.md`** — a plain-language explainer of
+  FedRAMP 20x and the 2026 Consolidated Rules (CR26) overhaul, for anyone
+  who's heard people worrying about it and wants the short version
 - **`docs/POAM-TEMPLATE.md`** — a starting point for tracking findings;
   get FedRAMP's official POA&M workbook for actual submissions
 - **`CHANGELOG.md`** — change history, in the spirit of the documentation

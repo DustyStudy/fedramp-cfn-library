@@ -6,11 +6,19 @@ control baselines — authorizations are validated against a smaller set of
 in a machine-readable way rather than through a traditional control
 narrative.
 
-**Status:** still actively evolving. Phase 2 pilot participants were
-announced in December 2025, and FedRAMP has signaled 20x Low/Moderate wide
-availability is targeted for early this year — but timelines have shifted
-before. Before relying on anything in this folder, check the current
-guidance at:
+⚠️ **Terminology update (August 2026):** FedRAMP finalized a major
+overhaul (the "Consolidated Rules for 2026" / CR26) since this folder was
+first written — the Dec 2025 pilot status below is now superseded.
+"FedRAMP Authorization" is now "FedRAMP Certification," and
+Low/Moderate/High baselines are now Certification Classes B/C/D. See
+`../docs/FEDRAMP-20X-CHEAT-SHEET.md` for a plain-language rundown of what
+changed. The KSI category list below predates CR26 and hasn't been
+re-verified against FedRAMP's current published KSI catalog — treat it as
+directionally useful, not current.
+
+**Status (superseded — see note above):** as of December 2025, FedRAMP
+20x was still in a phased pilot. Before relying on anything in this
+folder, check the current guidance at:
 
 - https://www.fedramp.gov/updates/changelog
 - https://www.fedramp.gov/docs/rev5/balance/intro/ (how 20x improvements
