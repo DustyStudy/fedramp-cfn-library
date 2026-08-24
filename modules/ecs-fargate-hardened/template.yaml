@@ -23,7 +23,7 @@ Resources:
           - Sid: AllowRootAccountAdmin
             Effect: Allow
             Principal:
-              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
             Action: 'kms:*'
             Resource: '*'
           # Required: CloudWatch Logs makes its own encrypt/decrypt calls
@@ -42,7 +42,7 @@ Resources:
             Resource: '*'
             Condition:
               ArnLike:
-                'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*'
+                'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*'
           # Note: this key is also referenced by ECS Exec for encrypting
           # the interactive session data channel, which separately
           # requires kms:GenerateDataKey/kms:Decrypt for whichever IAM

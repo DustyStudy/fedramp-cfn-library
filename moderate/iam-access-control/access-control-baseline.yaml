@@ -100,7 +100,7 @@ Resources:
               - 'iam:DeletePolicyVersion'
               - 'iam:CreatePolicyVersion'
               - 'iam:SetDefaultPolicyVersion'
-            Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:policy/developer-permission-boundary'
+            Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/developer-permission-boundary'
           - Sid: DenyRemovingOwnBoundary
             Effect: Deny
             Action:
@@ -168,14 +168,14 @@ Resources:
                   - iam:DeleteVirtualMFADevice
                   - iam:ListMFADevices
                 Resource:
-                  - !Sub 'arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}'
-                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/${!aws:username}'
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:mfa/${!aws:username}'
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${!aws:username}'
               - Sid: AllowChangeOwnPassword
                 Effect: Allow
                 Action:
                   - iam:ChangePassword
                   - iam:GetUser
-                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:user/${!aws:username}'
+                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${!aws:username}'
               - Sid: DenyAllExceptListedUnlessMFAd
                 Effect: Deny
                 NotAction:

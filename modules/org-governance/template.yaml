@@ -12,6 +12,15 @@ Parameters:
     Default: 365
     Description: 'Backup retention in days (Moderate: 365, High: 1095)'
 
+  BackupRegions:
+    Type: CommaDelimitedList
+    Default: 'us-east-1,us-west-2'
+    Description: >-
+      Regions the centralized backup plan replicates to. Defaults assume a
+      standard AWS commercial deployment — if deploying in AWS GovCloud,
+      override with GovCloud region names (e.g. us-gov-west-1,
+      us-gov-east-1) instead, since the two partitions don't share regions.
+
 Conditions:
   HasTargetId: !Not [!Equals [!Ref TargetId, '']]
 
@@ -33,7 +42,7 @@ Resources:
             Resource: '*'
             Condition:
               StringLike:
-                'aws:PrincipalArn': 'arn:aws:iam::*:root'
+                'aws:PrincipalArn': !Sub 'arn:${AWS::Partition}:iam::*:root'
 
           - Sid: DenyDirectInternetGateways
             Effect: Deny
@@ -74,35 +83,37 @@ Resources:
       Description: 'Automated centralized backup policy with retention'
       Type: BACKUP_POLICY
       TargetIds: !If [HasTargetId, [!Ref TargetId], !Ref 'AWS::NoValue']
-      Content: !Sub |
-        {
-          "plans": {
-            "FedRAMPDailyBackupPlan": {
-              "regions": { "@@assign": ["us-east-1", "us-west-2"] },
-              "rules": {
-                "DailyRule": {
-                  "schedule_expression": { "@@assign": "cron(0 5 ? * * *)" },
-                  "start_backup_window_minutes": { "@@assign": 60 },
-                  "complete_backup_window_minutes": { "@@assign": 120 },
-                  "lifecycle": {
-                    "move_to_cold_storage_after_days": { "@@assign": 30 },
-                    "delete_after_days": { "@@assign": ${BackupRetentionDays} }
-                  },
-                  "target_backup_vault_name": { "@@assign": "FedRAMPComplianceVault" }
-                }
-              },
-              "selections": {
-                "tags": {
-                  "FedRAMPBackup": {
-                    "iam_role_arn": { "@@assign": "arn:aws:iam::$account:role/AWSBackupDefaultServiceRole" },
-                    "tag_key": { "@@assign": "Backup" },
-                    "tag_value": { "@@assign": ["true", "True"] }
+      Content: !Sub
+        - |
+          {
+            "plans": {
+              "FedRAMPDailyBackupPlan": {
+                "regions": { "@@assign": ["${RegionsJoined}"] },
+                "rules": {
+                  "DailyRule": {
+                    "schedule_expression": { "@@assign": "cron(0 5 ? * * *)" },
+                    "start_backup_window_minutes": { "@@assign": 60 },
+                    "complete_backup_window_minutes": { "@@assign": 120 },
+                    "lifecycle": {
+                      "move_to_cold_storage_after_days": { "@@assign": 30 },
+                      "delete_after_days": { "@@assign": ${BackupRetentionDays} }
+                    },
+                    "target_backup_vault_name": { "@@assign": "FedRAMPComplianceVault" }
+                  }
+                },
+                "selections": {
+                  "tags": {
+                    "FedRAMPBackup": {
+                      "iam_role_arn": { "@@assign": "arn:${AWS::Partition}:iam::$account:role/AWSBackupDefaultServiceRole" },
+                      "tag_key": { "@@assign": "Backup" },
+                      "tag_value": { "@@assign": ["true", "True"] }
+                    }
                   }
                 }
               }
             }
           }
-        }
+        - RegionsJoined: !Join ['", "', !Ref BackupRegions]
 
 Outputs:
   WorkloadPerimeterSCPId:

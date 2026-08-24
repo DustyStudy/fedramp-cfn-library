@@ -25,7 +25,7 @@ Resources:
           - Sid: AllowRootAccountAdmin
             Effect: Allow
             Principal:
-              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
             Action: 'kms:*'
             Resource: '*'
           # Required: whichever role actually writes patch output to the
@@ -111,7 +111,7 @@ Resources:
               Service: ssm.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonSSMMaintenanceWindowRole
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonSSMMaintenanceWindowRole'
 
   # Weekly Patching Maintenance Window
   PatchMaintenanceWindow:

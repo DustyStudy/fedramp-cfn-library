@@ -27,7 +27,7 @@ Resources:
             Resource: '*'
             Condition:
               StringLike:
-                'aws:PrincipalArn': 'arn:aws:iam::*:root'
+                'aws:PrincipalArn': !Sub 'arn:${AWS::Partition}:iam::*:root'
 
           - Sid: DenyDirectInternetGateways
             Effect: Deny

@@ -157,7 +157,7 @@ Resources:
               Service: config.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWS_ConfigRole
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWS_ConfigRole'
       Policies:
         - PolicyName: ConfigS3Delivery
           PolicyDocument:
