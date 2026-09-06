@@ -10,13 +10,13 @@ expectations.
 
 | Template | Rev5 Controls | 20x KSI |
 |---|---|---|
-| `org-cloudtrail.yaml` | AU-2, AU-3, AU-6, AU-11, AU-12 | KSI-MLA-01, KSI-MLA-02 |
-| `config-conformance-pack.yaml` | CM-2, CM-6, CM-8, CA-7 | KSI-CNBC-01, KSI-CNBC-02 |
-| `guardduty-org.yaml` | SI-4, IR-4 | KSI-MLA-03, KSI-INR-01 |
-| `security-hub-org.yaml` | CA-7, RA-5, SI-4 | KSI-MLA-04 |
-| `iam-password-policy.yaml` | IA-5, AC-2, AC-7 | KSI-IAM-01 |
+| `org-cloudtrail/template.yaml` | AU-2, AU-3, AU-6, AU-11, AU-12 | KSI-MLA-01, KSI-MLA-02 |
+| `config-conformance-pack/template.yaml` | CM-2, CM-6, CM-8, CA-7 | KSI-CNBC-01, KSI-CNBC-02 |
+| `guardduty-org/template.yaml` | SI-4, IR-4 | KSI-MLA-03, KSI-INR-01 |
+| `security-hub-org/template.yaml` | CA-7, RA-5, SI-4 | KSI-MLA-04 |
+| `iam-password-policy/template.yaml` | IA-5, AC-2, AC-7 | KSI-IAM-01 |
 
-**Note:** `iam-password-policy.yaml` and `guardduty-org.yaml` both use a
+**Note:** `iam-password-policy/template.yaml` and `guardduty-org/template.yaml` both use a
 small Lambda-backed custom resource internally. Neither the account
 password policy nor GuardDuty organization auto-enrollment has a native
 CloudFormation resource type — both can only be set via a direct API call
