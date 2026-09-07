@@ -4,9 +4,7 @@
 
 If you discover a security vulnerability in this repository, please report it privately — **do not open a public GitHub issue**.
 
-**Preferred method:** Use GitHub's [private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing/privately-reporting-a-security-vulnerability) feature (Security tab → "Report a vulnerability" on this repo).
-
-**Alternative:** Email [YOUR_EMAIL_HERE] with a description of the issue, steps to reproduce, and any relevant logs or templates. Please do not include real AWS account IDs, ARNs, or credentials in your report.
+Use GitHub's [private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing/privately-reporting-a-security-vulnerability) feature (Security tab → "Report a vulnerability" on this repo). Include a description of the issue, steps to reproduce, and any relevant logs or templates. Please do not include real AWS account IDs, ARNs, or credentials in your report.
 
 You can expect an initial response within 5 business days.
 
