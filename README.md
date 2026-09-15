@@ -1,5 +1,12 @@
 # FedRAMP CloudFormation Library
 
+[![CI](https://github.com/DustyStudy/fedramp-cfn-library/actions/workflows/ci.yml/badge.svg)](https://github.com/DustyStudy/fedramp-cfn-library/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![NIST 800-53 Rev5](https://img.shields.io/badge/NIST%20800--53-Rev5-informational)](docs/NIST-800-53-REV5-MATRIX.md)
+[![FedRAMP](https://img.shields.io/badge/FedRAMP-Moderate%20%7C%20High%20%7C%2020x-orange)](docs/control-mapping.md)
+[![IaC](https://img.shields.io/badge/IaC-CloudFormation-blueviolet)](.)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 Reusable AWS CloudFormation templates that implement common controls and
 security patterns for organizations pursuing **FedRAMP Moderate**, **FedRAMP
 High**, or **FedRAMP 20x** authorization.
