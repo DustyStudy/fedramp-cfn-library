@@ -30,20 +30,24 @@ against your organization's current SSP and your 3PAO's expectations.
   baselines. High reuses most of Moderate's templates with tighter
   parameters (longer log retention, stricter crypto, broader MFA
   enforcement) rather than duplicating logic.
-- **`fedramp-20x/`** is *not* a control baseline. FedRAMP 20x authorizations
-  are validated against a smaller set of machine-readable **Key Security
-  Indicators (KSIs)** — a fundamentally different assessment model that is
-  still being piloted (Phase 2 pilot participants were announced in December
-  2025; wide availability of 20x Low/Moderate is targeted for early this
-  year). Templates here are organized by KSI category instead of control
-  family, and this track will change as FedRAMP finalizes 20x guidance.
+- **`fedramp-20x/`** is *not* a control baseline. FedRAMP 20x
+  certifications are validated against a smaller set of machine-readable
+  **Key Security Indicators (KSIs)** — a fundamentally different
+  assessment model. FedRAMP finalized the **Consolidated Rules for 2026
+  ("CR26")** on 2026-06-24, moving 20x from pilot to general availability
+  (46 KSIs across 10 families) and renaming "FedRAMP Authorization" to
+  "FedRAMP Certification" with Low/Moderate/High now Certification Classes
+  B/C/D. Templates here are organized by KSI family instead of control
+  family — see `fedramp-20x/README.md` for the current catalog and
+  `docs/FEDRAMP-20X-CHEAT-SHEET.md` for a plain-language rundown of what
+  changed.
 
 ## Structure
 
 ```
 moderate/            Rev5 Moderate baseline, by control family
 high/                Rev5 High baseline (supersets moderate, tighter params)
-fedramp-20x/         KSI-based templates (CNA, IAM, MLA, CNBC, SVC, INR)
+fedramp-20x/         KSI-based templates (CNA, IAM, MLA, SVC, INR)
 modules/             Shared nested-stack building blocks used across tracks
 docs/                Control-to-template cross-reference
 ```

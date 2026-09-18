@@ -6,6 +6,20 @@ implement. This is a starting point for your control implementation
 narrative — always verify against your current SSP language and your 3PAO's
 expectations.
 
+> ⚠️ **KSI ID caveat:** the "20x KSI" columns below use a pre-CR26,
+> pilot-era numbered ID scheme (e.g. `KSI-MLA-01`, `KSI-CNBC-02`). FedRAMP's
+> now-finalized CR26 catalog (2026-06-24) uses 3-letter mnemonic suffixes
+> instead (e.g. `KSI-MLA-LET`, `KSI-CNA-RNT`) — see `fedramp-20x/README.md`
+> for the full current catalog. The family-code prefix (`MLA`, `IAM`, `SVC`,
+> `CNA`, `INR`) is still reliable for five of the six families used below;
+> **`CNBC` no longer exists** as a family — its scope split into `CNA`
+> (network boundary/traffic) and `SVC` (configuration/drift). The specific
+> numbered suffixes below have **not** been re-verified against a 1:1
+> mapping to the new lettered IDs — treat them as "this row satisfies
+> something in this family" rather than a specific indicator citation until
+> someone maps them individually against
+> [github.com/FedRAMP/2026-markdown](https://github.com/FedRAMP/2026-markdown).
+
 ## modules/ (shared baseline, used by all three tracks)
 
 | Template | Rev5 Controls | 20x KSI |
@@ -129,16 +143,22 @@ See `high/README.md` for example parameter override files.
 
 ## fedramp-20x/
 
-FedRAMP 20x KSI categories (subject to change as FedRAMP finalizes guidance —
-see https://www.fedramp.gov/updates/changelog for the current status):
+FedRAMP 20x KSI families, per CR26's finalized catalog (confirmed
+2026-06-24 — see `../fedramp-20x/README.md` for the full 10-family,
+46-indicator breakdown and source links):
 
-| Folder | KSI Category |
+| Folder | KSI Family |
 |---|---|
 | `ksi-cna/` | Cloud Native Architecture |
 | `ksi-iam/` | Identity and Access Management |
 | `ksi-mla/` | Monitoring, Logging and Auditing |
-| `ksi-cnbc/` | Configuration and Network Boundary Controls |
-| `ksi-svc/` | Service Configuration |
+| `ksi-svc/` | Service Configuration (also covers configuration/drift scope formerly attributed to the now-retired `CNBC` family) |
 | `ksi-inr/` | Incident Response |
+
+CR26 also added `CED`, `CMT`, `PIY`, `RPL`, and `SCR` as top-level
+families with no dedicated folder here — they're process/policy
+indicators (training, change procedures, inventory, recovery planning,
+supply chain) rather than infrastructure this repo's CloudFormation
+templates can evidence directly. See `../docs/COVERAGE-GAPS.md`.
 
 *(Fill in specific template-to-KSI mappings here as templates are added.)*

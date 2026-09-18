@@ -94,13 +94,16 @@ That's the single most common misunderstanding driving unnecessary panic.
   Security Indicators (KSIs)** — specific, checkable facts about your
   system (e.g., "is MFA enforced," "are backups encrypted") that get
   verified in a machine-readable way, continuously, instead of written up
-  once and read by a human. Exactly how many KSIs exist and how they're
-  grouped is genuinely unsettled — sources from different months of 2026
-  cite anywhere from 46 to 63 individual indicators and anywhere from 9 to
-  12 top-level families, because the count has been revised repeatedly as
-  the program matured through pilot phases. Don't treat any specific
-  number you read (including in this repo) as current — check FedRAMP's
-  live machine-readable KSI document directly.
+  once and read by a human. As of CR26's 2026-06-24 launch, that's **46
+  individual indicators across 10 top-level families** (confirmed directly
+  against FedRAMP's own reference doc — see `fedramp-20x/README.md` for
+  the full family/indicator breakdown and source link). Earlier pilot-era
+  sources from different months of 2026 cited anywhere from 46 to 63
+  indicators and 9 to 12 families because the count was revised repeatedly
+  during the pilot; treat 46/10 as current for CR26, but still check
+  FedRAMP's live machine-readable KSI document directly before relying on
+  it for an actual submission, since individual indicator wording can
+  still be revised.
 
 If your service runs on standard cloud infrastructure you don't own
 physically, 20x is very likely the path built for you. If you run your
@@ -140,18 +143,18 @@ That means:
 - Everything in `docs/control-mapping.md` and
   `docs/NIST-800-53-REV5-MATRIX.md` stays relevant regardless of which
   Class or Type you're pursuing — those controls are the substance.
-- The `fedramp-20x/` folder's KSI cross-reference was written against an
-  earlier, six-category description of Key Security Indicators. Given
-  CR26 has since formalized and likely expanded that structure, treat that
-  folder's category list as directionally useful but due for a refresh
-  against FedRAMP's current published KSI catalog — don't take the exact
-  category names as current without checking.
+- The `fedramp-20x/` folder's KSI cross-reference has been refreshed
+  (as of this update) against CR26's finalized 10-family/46-indicator
+  catalog — see `fedramp-20x/README.md` for the current table and what
+  changed from the earlier six-category description.
 - `docs/CONTINUOUS-MONITORING.md` describes the older monthly/annual
-  ConMon deliverable model. CR26's "Collaborative Continuous Monitoring"
-  formalizes new specific deliverables (Ongoing Certification Reports,
-  Quarterly Reviews, Persistent Assessments) that aren't reflected there
-  yet — same caveat, worth a dedicated update rather than assuming it's
-  current.
+  ConMon deliverable model and now carries a callout pointing to CR26's
+  "Collaborative Continuous Monitoring" model — Ongoing Certification
+  Reports every 3 months plus Quarterly Review meetings, replacing the
+  ad-hoc monthly cadence for providers on CR26. The monthly-deliverable
+  table below that callout is still the accurate picture for what
+  evidence this repo generates; only the reporting cadence/format around
+  it has changed.
 - Nothing in `docs/COVERAGE-GAPS.md` changes either — the things this
   repo can't automate (personnel security, training, a tested incident
   response plan, the actual assessment engagement) are exactly as true
