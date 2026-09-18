@@ -61,8 +61,8 @@ finalized CR26 catalog.** Its scope split:
 - Configuration-drift/management indicators → now under **Service
   Configuration** (`KSI-SVC-ACM`)
 
-The old `ksi-cnbc/` folder's contents were already empty placeholders
-(`.gitkeep` only), so nothing needed migrating — new evidence for that
+The old `ksi-cnbc/` folder was an empty placeholder (`.gitkeep` only) and
+has been removed, so nothing needed migrating — new evidence for that
 scope should go under `ksi-cna/` or `ksi-svc/` per the split above. See
 `../docs/control-mapping.md` for the template-level crosswalk, which uses
 CR26's lettered IDs (e.g. `KSI-MLA-LET`). It was remapped in September 2026

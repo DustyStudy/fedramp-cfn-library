@@ -38,6 +38,8 @@ FedRAMP expects.
   assessor-validated one. GuardDuty and incident-notification templates no
   longer cite `KSI-INR-*`, since CR26's INR family covers after-action and
   procedure reviews rather than detection.
+- Removed the empty `fedramp-20x/ksi-cnbc/` placeholder; the `CNBC` KSI
+  family no longer exists in CR26.
 - Rewrote `docs/CONTINUOUS-MONITORING.md` for CR26: Collaborative
   Continuous Monitoring, Vulnerability Detection and Response, and
   Significant Change Notification, with applicability dates. Updated
