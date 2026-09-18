@@ -4,8 +4,8 @@ All notable changes to this repo are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Significant infrastructure changes to a live FedRAMP-authorized system
-require going through FedRAMP's Significant Change Request (SCR) process
-— see `docs/CONTINUOUS-MONITORING.md`. Keeping this changelog current is
+require notifying agencies under FedRAMP's Significant Change
+Notification (SCN) rules — see `docs/CONTINUOUS-MONITORING.md`. Keeping this changelog current is
 good practice regardless of whether you're tracking against a live
 authorization, since it mirrors the change-documentation discipline
 FedRAMP expects.
@@ -30,13 +30,18 @@ FedRAMP expects.
   `docs/FEDRAMP-20X-CHEAT-SHEET.md`, `README.md`,
   `docs/control-mapping.md`. Noted that the `CNBC` KSI family from the
   pre-CR26 pilot structure no longer exists — its scope split into `CNA`
-  (network boundary) and `SVC` (configuration/drift). Added a callout to
-  `docs/CONTINUOUS-MONITORING.md` for CR26's new Collaborative Continuous
-  Monitoring model (Ongoing Certification Reports every 3 months +
-  Quarterly Reviews, required by 2027-01-01 for 20x). Flagged that
-  `docs/control-mapping.md`'s existing numbered KSI IDs (e.g.
-  `KSI-MLA-01`) predate CR26's finalized lettered IDs (e.g.
-  `KSI-MLA-LET`) and haven't been re-verified 1:1 against the new catalog.
+  (network boundary) and `SVC` (configuration/drift).
+- Remapped every template's 20x KSI reference (`docs/control-mapping.md` and
+  the header comments in 12 templates) from the pilot-era numbered IDs
+  (e.g. `KSI-MLA-01`) to CR26's lettered IDs (e.g. `KSI-MLA-LET`). This is a
+  judgment-based mapping against the official indicator text, not an
+  assessor-validated one. GuardDuty and incident-notification templates no
+  longer cite `KSI-INR-*`, since CR26's INR family covers after-action and
+  procedure reviews rather than detection.
+- Rewrote `docs/CONTINUOUS-MONITORING.md` for CR26: Collaborative
+  Continuous Monitoring, Vulnerability Detection and Response, and
+  Significant Change Notification, with applicability dates. Updated
+  `docs/COVERAGE-GAPS.md`, `README.md`, and `CONTRIBUTING.md` to match.
 
 ## 2026-08-23
 

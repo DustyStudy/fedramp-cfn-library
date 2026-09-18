@@ -7,7 +7,7 @@ Description: >
 
   Control mapping:
     Rev5 (Moderate/High): CM-2, CM-6, CM-8, CA-7, RA-5
-    FedRAMP 20x: KSI-CNBC-01 (configuration management), KSI-CNBC-02 (change detection)
+    FedRAMP 20x: KSI-SVC-ACM (config drift), KSI-MLA-EVC (config evaluation), KSI-CMT-LMC (change monitoring)
 
 Parameters:
   ConfigBucketName:

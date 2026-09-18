@@ -64,12 +64,11 @@ finalized CR26 catalog.** Its scope split:
 The old `ksi-cnbc/` folder's contents were already empty placeholders
 (`.gitkeep` only), so nothing needed migrating — new evidence for that
 scope should go under `ksi-cna/` or `ksi-svc/` per the split above. See
-`../docs/control-mapping.md` for the template-level crosswalk, which still
-uses the pre-CR26 numbered IDs (e.g. `KSI-MLA-01`) in places — those
-numbers predate CR26's finalized lettered IDs (e.g. `KSI-MLA-LET`) and
-have **not** been verified against a 1:1 mapping; treat the family code
-(the part before the number/letters) as reliable and the specific
-suffix as needing a fresh check against the source doc above.
+`../docs/control-mapping.md` for the template-level crosswalk, which uses
+CR26's lettered IDs (e.g. `KSI-MLA-LET`). It was remapped in September 2026
+from the pilot-era numbered IDs (e.g. `KSI-MLA-01`) by matching each
+template's behavior to the official indicator wording — a judgment-based
+mapping, not an assessor-validated one, so confirm before citing a row.
 
 CR26 also formalized four families with no infrastructure-template
 equivalent in this repo — `CED` (training), `PIY` (policy/inventory/SDLC),

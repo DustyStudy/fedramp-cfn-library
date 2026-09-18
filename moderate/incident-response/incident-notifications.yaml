@@ -9,7 +9,7 @@ Description: >
 
   Control mapping:
     Rev5 (Moderate/High): IR-4, IR-5, IR-6
-    FedRAMP 20x: KSI-INR-01 (incident detection capability), KSI-INR-02 (incident response process)
+    FedRAMP 20x: KSI-MLA-RVL (alerting on findings; supports KSI-INR-* reviews)
 
 Parameters:
   GuardDutySeverityThreshold:

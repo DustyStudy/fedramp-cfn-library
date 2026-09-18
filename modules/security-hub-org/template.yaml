@@ -6,7 +6,7 @@ Description: >
 
   Control mapping:
     Rev5 (Moderate/High): CA-7, RA-5, SI-4
-    FedRAMP 20x: KSI-MLA-04 (continuous security posture monitoring)
+    FedRAMP 20x: KSI-CNA-EIS (optional, Class B), KSI-MLA-OSM (central findings)
 
 Parameters:
   AutoEnableStandardsForNewAccounts:

@@ -58,8 +58,8 @@ That's the single most common misunderstanding driving unnecessary panic.
 | FedRAMP Authorized / Authorization | **FedRAMP Certified / Certification** | Just the label. Same underlying assessment concept. Agencies still separately issue their own "Authority to Operate" (ATO) — that word hasn't changed. |
 | Low / Moderate / High (impact levels) | **Certification Class B / C / D** (with Class A as a new entry tier) | Important nuance: a Class is *not* a repackaged impact level. It describes how much evidence and reporting depth a cloud service commits to — not how sensitive the data it's allowed to hold is. Agencies still categorize their own systems as Low/Moderate/High separately; the two labels aren't meant to be read as equivalent. |
 | 3PAO (Third Party Assessment Organization) | **FedRAMP Recognized Assessor** | Same idea — an independent assessor — new name, and a stricter rule that the assessor can't also be the same firm that advised you on getting ready. |
-| Continuous Monitoring (ConMon) | **Collaborative Continuous Monitoring** | Same spirit (ongoing evidence, not just a point-in-time check), formalized with new specific deliverables (see below). |
-| Significant Change Request (SCR) | **Significant Change Notification (SCN)** in some contexts | Philosophy shift from "ask permission" toward "notify," though exact terminology varies by which specific rule you're looking at — verify current usage for your situation. |
+| Continuous Monitoring (ConMon) | **Collaborative Continuous Monitoring** | Same spirit (ongoing evidence, not just a point-in-time check), formalized as quarterly Ongoing Certification Reports and Quarterly Review meetings, alongside continuous Vulnerability Detection and Response timeframes. |
+| Significant Change Request (SCR) | **Significant Change Notification (SCN)** | Shift from "ask permission" to "notify." Changes are sorted as routine recurring (no notification), adaptive (notify within 10 business days after finishing), or transformative (notify 30 business days before starting). See `CONTINUOUS-MONITORING.md`. |
 
 ## The new Class system, in plain English
 
@@ -147,14 +147,11 @@ That means:
   (as of this update) against CR26's finalized 10-family/46-indicator
   catalog — see `fedramp-20x/README.md` for the current table and what
   changed from the earlier six-category description.
-- `docs/CONTINUOUS-MONITORING.md` describes the older monthly/annual
-  ConMon deliverable model and now carries a callout pointing to CR26's
-  "Collaborative Continuous Monitoring" model — Ongoing Certification
-  Reports every 3 months plus Quarterly Review meetings, replacing the
-  ad-hoc monthly cadence for providers on CR26. The monthly-deliverable
-  table below that callout is still the accurate picture for what
-  evidence this repo generates; only the reporting cadence/format around
-  it has changed.
+- `docs/CONTINUOUS-MONITORING.md` has been rewritten around CR26's
+  Collaborative Continuous Monitoring (quarterly Ongoing Certification
+  Reports and Quarterly Reviews), Vulnerability Detection and Response
+  (fixed detection and remediation timeframes), and Significant Change
+  Notification rules, replacing the old monthly-deliverable model.
 - Nothing in `docs/COVERAGE-GAPS.md` changes either — the things this
   repo can't automate (personnel security, training, a tested incident
   response plan, the actual assessment engagement) are exactly as true

@@ -33,14 +33,16 @@ deployed this repo" for "we're FedRAMP ready."
 - **CM-3/CM-4 (Change Control):** The GitHub Actions CI in this repo
   catches syntax and security-policy violations before merge. It is not a
   Change Advisory Board, a documented change-management process, or a
-  Significant Change Request (SCR) process — FedRAMP requires CSPs to
-  follow a formal SCR process with FedRAMP before making transformative
-  changes to an authorized system.
+  Significant Change Notification (SCN) process — under CR26, providers
+  must classify each change (routine, adaptive, or transformative) and
+  notify agencies accordingly, including 30 business days' notice of
+  initial plans before a transformative change.
 - **RA-5 (Vulnerability Scanning):** GuardDuty and ECR scan-on-push give
   you continuous threat detection and container image scanning. FedRAMP's
-  ConMon requirements go further — authenticated OS and application-level
-  scans on a monthly cadence, uploaded as part of the monthly ConMon
-  deliverable. See `CONTINUOUS-MONITORING.md`.
+  CR26 Vulnerability Detection and Response rules go further —
+  persistent detection at required intervals, plus remediation within
+  fixed timeframes, which needs a proper OS/application-level scanner and
+  a remediation workflow. See `CONTINUOUS-MONITORING.md`.
 - **AC-2 (Account Management):** The password policy and MFA enforcement
   are automated. The actual account lifecycle — provisioning, periodic
   access review, timely offboarding — is a process your organization runs,

@@ -8,7 +8,8 @@ trustworthy reference — please keep a few things in mind.
 - **Map every template to its control(s) or KSI(s).** A template without a
   mapping in `docs/control-mapping.md` isn't useful to someone building an
   SSP. State the NIST 800-53 Rev5 control ID (e.g. `AC-2`, `AU-6`) or the
-  FedRAMP 20x KSI ID (e.g. `KSI-MLA-01`) in a comment block at the top of the
+  FedRAMP 20x KSI ID (e.g. `KSI-MLA-LET`, from FedRAMP's
+  CR26 catalog) in a comment block at the top of the
   template and in the docs table.
 - **No hardcoded secrets, account IDs, or ARNs.** Use CloudFormation
   parameters, SSM parameters, or Secrets Manager references.
