@@ -19,6 +19,25 @@ FedRAMP expects.
   (`docs/POAM-TEMPLATE.md`), and continuous monitoring mapping
   (`docs/CONTINUOUS-MONITORING.md`)
 
+### Changed
+- Refreshed all FedRAMP 20x / CR26 references against FedRAMP's finalized
+  Consolidated Rules for 2026 (confirmed 2026-06-24 via
+  [github.com/FedRAMP/2026-markdown](https://github.com/FedRAMP/2026-markdown),
+  the current source of truth — `github.com/FedRAMP/docs` has been renamed
+  to `docs-legacy` and is no longer current). The KSI catalog is now
+  confirmed at 46 indicators across 10 families (was previously flagged as
+  "unsettled" pending finalization): `fedramp-20x/README.md`,
+  `docs/FEDRAMP-20X-CHEAT-SHEET.md`, `README.md`,
+  `docs/control-mapping.md`. Noted that the `CNBC` KSI family from the
+  pre-CR26 pilot structure no longer exists — its scope split into `CNA`
+  (network boundary) and `SVC` (configuration/drift). Added a callout to
+  `docs/CONTINUOUS-MONITORING.md` for CR26's new Collaborative Continuous
+  Monitoring model (Ongoing Certification Reports every 3 months +
+  Quarterly Reviews, required by 2027-01-01 for 20x). Flagged that
+  `docs/control-mapping.md`'s existing numbered KSI IDs (e.g.
+  `KSI-MLA-01`) predate CR26's finalized lettered IDs (e.g.
+  `KSI-MLA-LET`) and haven't been re-verified 1:1 against the new catalog.
+
 ## 2026-08-23
 
 ### Added

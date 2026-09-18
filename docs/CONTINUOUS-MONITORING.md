@@ -11,6 +11,30 @@ related FedRAMP.gov guidance. Verify current requirements at
 https://www.fedramp.gov before relying on specifics here — ConMon
 requirements have been updated multiple times and will be again.
 
+> ⚠️ **CR26 update (confirmed 2026-06-24, applicability dates below):**
+> FedRAMP's Consolidated Rules for 2026 formalize a new **Collaborative
+> Continuous Monitoring** model that layers on top of (and is expected to
+> eventually replace the reporting rhythm of) the monthly model described
+> below. It has two required deliverables instead of a monthly cadence:
+>
+> - **Ongoing Certification Reports** — providers must supply a
+>   human-readable summary report to all necessary parties every 3 months
+>   covering the full period since the last one.
+> - **Quarterly Reviews** — a recurring review meeting between provider and
+>   agencies/FedRAMP.
+>
+> Applicability: required for both 20x and Rev5, Optional Adoption opens
+> 2026-07-04, must-obtain by 2026-07-04 (20x) / 2027-01-01 (Rev5), and
+> becomes fully mandatory (Maintain) by 2027-01-01 (20x) / 2027-04-02
+> (Rev5). Source:
+> [`reference/collaborative-continuous-monitoring.md`](https://github.com/FedRAMP/2026-markdown/blob/main/reference/collaborative-continuous-monitoring.md)
+> in [github.com/FedRAMP/2026-markdown](https://github.com/FedRAMP/2026-markdown).
+> This doesn't change what technical evidence this repo's templates
+> generate (the tables below are still accurate for that) — it changes the
+> cadence/format you report it in. A dedicated deliverable-by-deliverable
+> rewrite of this doc against the new model is still worth doing; this
+> callout is a pointer, not a full update.
+
 ## Monthly deliverables
 
 | FedRAMP Requirement | What this repo helps with | What's still on you |

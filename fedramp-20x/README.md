@@ -6,56 +6,86 @@ control baselines — authorizations are validated against a smaller set of
 in a machine-readable way rather than through a traditional control
 narrative.
 
-⚠️ **Terminology update (August 2026):** FedRAMP finalized a major
-overhaul (the "Consolidated Rules for 2026" / CR26) since this folder was
-first written — the Dec 2025 pilot status below is now superseded.
-"FedRAMP Authorization" is now "FedRAMP Certification," and
-Low/Moderate/High baselines are now Certification Classes B/C/D. See
+**Status (September 2026):** FedRAMP finalized the **Consolidated Rules
+for 2026 ("CR26")** on 2026-06-24, moving 20x from pilot to a generally
+available certification path. "FedRAMP Authorization" is now "FedRAMP
+Certification," and the old Low/Moderate/High baselines are now
+Certification Classes B/C/D (with a new temporary Class A entry tier). See
 `../docs/FEDRAMP-20X-CHEAT-SHEET.md` for a plain-language rundown of what
-changed.
+changed and why.
 
-⚠️ **On the KSI category list below specifically:** I looked into
-updating this against FedRAMP's current official KSI catalog and found
-something worth being upfront about — the family structure itself is
-genuinely unsettled. Different snapshots of FedRAMP's own machine-readable
-KSI document (`FRMR.KSI.key-security-indicators.json` in
-[github.com/FedRAMP/docs](https://github.com/FedRAMP/docs)), and
-third-party summaries of it from different months in 2026, describe
-anywhere from 9 to 12 top-level KSI themes and anywhere from 46 to 63
-individual indicators. One February 2026 analysis of the actual JSON
-schema lists 11 themes (`AFR`, `CED`, `CMT`, `CNA`, `IAM`, `INR`, `MLA`,
-`PIY`, `RPL`, `SCC`, `UDC`) — several of which don't correspond to
-anything in the six-category model this table was originally built
-against, and I couldn't confidently determine what some of those newer
-codes (`CMT`, `PIY`, `SCC`, `UDC`) actually stand for from the sources
-available to me. Rather than guess, I've left the table below as-is: the
-six categories are broad, durable **engineering** groupings (identity,
-logging, network config, etc.) that still make sense as a map to this
-repo's templates, but they should not be read as a current, authoritative
-list of FedRAMP's official KSI family names. Before using this for actual
-KSI evidence-mapping, check the live JSON file directly, or use a tool
-built to query it (e.g. the community-built FedRAMP Docs MCP server) —
-don't rely on this table's category names matching what a 3PAO or
-FedRAMP reviewer expects to see.
+## The current KSI catalog
 
-**Status (superseded — see note above):** as of December 2025, FedRAMP
-20x was still in a phased pilot. Before relying on anything in this
-folder, check the current guidance at:
+CR26 finalized the KSI structure at **46 individual indicators across 10
+top-level families**, confirmed directly against FedRAMP's own
+machine-generated reference doc
+([`reference/key-security-indicators.md`](https://github.com/FedRAMP/2026-markdown/blob/main/reference/key-security-indicators.md)
+in [github.com/FedRAMP/2026-markdown](https://github.com/FedRAMP/2026-markdown),
+last KSI-level changelog entry dated 2026-06-24 as of this update). That
+repo — not `github.com/FedRAMP/docs`, which has been renamed to
+`docs-legacy` and is no longer current — is FedRAMP's actual source of
+truth for the finalized rule text. Always check it directly before relying
+on anything below for real KSI evidence-mapping; family scope and
+individual indicator wording can still be revised.
 
-- https://www.fedramp.gov/updates/changelog
-- https://github.com/FedRAMP/docs (the actual machine-readable KSI
-  definitions live at `markdown/FRMR.KSI.key-security-indicators.md` and
-  `FRMR.KSI.key-security-indicators.json` in this repo)
+| Family | Code | Individual KSIs | Folder in this repo |
+|---|---|---|---|
+| Cybersecurity Education | `CED` | 1 (`RAT`) | — (training records, not infrastructure; see `../docs/COVERAGE-GAPS.md`) |
+| Change Management | `CMT` | 4 (`LMC`, `RMV`, `RVP`, `VTD`) | — (process/procedure, not infrastructure) |
+| Cloud Native Architecture | `CNA` | 8 (`DFP`, `EIS`*, `IBP`, `MAT`, `OFA`, `RNT`, `RVP`, `ULN`) | `ksi-cna/` |
+| Identity and Access Management | `IAM` | 6 (`AAM`, `APM`, `ELP`, `JIT`, `SNU`, `SUS`) | `ksi-iam/` |
+| Incident Response | `INR` | 3 (`AAR`, `RIR`, `RPI`) | `ksi-inr/` |
+| Monitoring, Logging, and Auditing | `MLA` | 5 (`ALA`*, `EVC`, `LET`, `OSM`, `RVL`) | `ksi-mla/` |
+| Policy and Inventory | `PIY` | 5 (`GIV`, `RES`, `RIS`, `RSD`, `RVD`) | — (governance/policy, not infrastructure) |
+| Recovery Planning | `RPL` | 4 (`ABO`, `ARP`, `RRO`, `TRC`) | — (plans/procedures, not infrastructure) |
+| Supply Chain Risk | `SCR` | 2 (`MIT`, `MON`) | — (process, not infrastructure) |
+| Service Configuration | `SVC` | 8 (`ACM`, `ASM`, `EIS`, `PRR`*, `RUD`*, `SIN`, `VCM`*, `VRI`) | `ksi-svc/` |
 
-## Folders (by KSI category)
+\* Marked "Class B, Optional" in the official reference at time of writing
+(`KSI-CNA-EIS`, `KSI-MLA-ALA`, `KSI-SVC-PRR`, `KSI-SVC-RUD`,
+`KSI-SVC-VCM`) — not required for every Certification Class. Verify current
+applicability per Class before treating one as mandatory.
 
-| Folder | KSI Category | Existing templates that already satisfy it |
+### What changed from the pre-CR26 structure
+
+This folder was originally organized around an earlier six-category
+description of KSIs (`CNA`, `IAM`, `MLA`, `CNBC`, `SVC`, `INR`) from before
+the structure was finalized. Five of those six family codes carried
+through into CR26 unchanged (`CNA`, `IAM`, `MLA`, `SVC`, `INR`) — the
+folders below are still valid. The sixth, **`CNBC` (Configuration and
+Network Boundary Controls), does not exist as a top-level family in the
+finalized CR26 catalog.** Its scope split:
+
+- Network-boundary/traffic-flow indicators → now under **Cloud Native
+  Architecture** (`KSI-CNA-RNT`, `KSI-CNA-ULN`, `KSI-CNA-RVP`)
+- Configuration-drift/management indicators → now under **Service
+  Configuration** (`KSI-SVC-ACM`)
+
+The old `ksi-cnbc/` folder's contents were already empty placeholders
+(`.gitkeep` only), so nothing needed migrating — new evidence for that
+scope should go under `ksi-cna/` or `ksi-svc/` per the split above. See
+`../docs/control-mapping.md` for the template-level crosswalk, which still
+uses the pre-CR26 numbered IDs (e.g. `KSI-MLA-01`) in places — those
+numbers predate CR26's finalized lettered IDs (e.g. `KSI-MLA-LET`) and
+have **not** been verified against a 1:1 mapping; treat the family code
+(the part before the number/letters) as reliable and the specific
+suffix as needing a fresh check against the source doc above.
+
+CR26 also formalized four families with no infrastructure-template
+equivalent in this repo — `CED` (training), `PIY` (policy/inventory/SDLC),
+`RPL` (recovery planning), and `SCR` (supply chain risk) — because they're
+evidenced by process, documentation, and organizational practice rather
+than CloudFormation resources. They're listed above for completeness; see
+`../docs/COVERAGE-GAPS.md` for what this repo can't automate.
+
+## Folders (by KSI family)
+
+| Folder | KSI Family | Existing templates that already satisfy it |
 |---|---|---|
 | `ksi-cna/` | Cloud Native Architecture | `modules/eks-hardened/template.yaml`, `modules/ecs-fargate-hardened/template.yaml`, `modules/network-perimeter-vpc/template.yaml` |
 | `ksi-iam/` | Identity and Access Management | `moderate/iam-access-control/access-control-baseline.yaml`, `modules/iam-password-policy/template.yaml`, `modules/org-scp-boundary/template.yaml` |
 | `ksi-mla/` | Monitoring, Logging and Auditing | `modules/org-cloudtrail/template.yaml`, `modules/guardduty-org/template.yaml`, `modules/security-hub-org/template.yaml`, `moderate/logging-monitoring/cis-metric-alarms.yaml`, `modules/ecs-fargate-hardened/template.yaml` |
-| `ksi-cnbc/` | Configuration and Network Boundary Controls | `modules/config-conformance-pack/template.yaml`, `moderate/network-boundary/vpc-flow-logs.yaml`, `moderate/network-boundary/default-security-group-lockdown.yaml`, `moderate/data-protection/s3-account-public-access-block.yaml`, `modules/fips-vpc-endpoints/template.yaml`, `modules/org-scp-boundary/template.yaml`, `modules/waf-hardened/template.yaml` |
-| `ksi-svc/` | Service Configuration | `moderate/data-protection/s3-account-public-access-block.yaml`, `moderate/data-protection/kms-cmk-baseline.yaml`, `modules/account-baseline/template.yaml`, `modules/ecr-hardened/template.yaml`, `modules/rds-postgres-hardened/template.yaml`, `modules/ssm-patching-hardened/template.yaml` |
+| `ksi-svc/` | Service Configuration | `moderate/data-protection/s3-account-public-access-block.yaml`, `moderate/data-protection/kms-cmk-baseline.yaml`, `modules/account-baseline/template.yaml`, `modules/ecr-hardened/template.yaml`, `modules/rds-postgres-hardened/template.yaml`, `modules/ssm-patching-hardened/template.yaml`, `modules/config-conformance-pack/template.yaml` (config/drift scope formerly under CNBC), `moderate/network-boundary/vpc-flow-logs.yaml`, `modules/fips-vpc-endpoints/template.yaml`, `modules/org-scp-boundary/template.yaml`, `modules/waf-hardened/template.yaml` (network-boundary scope formerly under CNBC — see split note above; some of these also support `ksi-cna/`) |
 | `ksi-inr/` | Incident Response | `modules/guardduty-org/template.yaml`, `moderate/incident-response/incident-notifications.yaml` |
 
 Many of `../modules/` templates already satisfy specific KSIs (see the
@@ -65,3 +95,12 @@ This table is a starting point for which existing template to point to when
 assembling KSI evidence; it is not a substitute for reading the actual KSI
 definitions, since 20x's specific validation method for each indicator may
 expect something more precise than "a relevant control exists."
+
+## Where to check for current, authoritative information
+
+- [fedramp.gov/2026](https://www.fedramp.gov/2026/) — the CR26 rules site
+- [github.com/FedRAMP/2026-markdown](https://github.com/FedRAMP/2026-markdown) —
+  human-readable generated docs (what this update was sourced from)
+- [github.com/FedRAMP/rules](https://github.com/FedRAMP/rules) — the
+  underlying machine-readable JSON ruleset (`fedramp-consolidated-rules.json`)
+- https://www.fedramp.gov/updates/changelog — plain-language change log
