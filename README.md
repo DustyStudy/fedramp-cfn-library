@@ -102,7 +102,7 @@ docs are aimed at that gap directly:
 - **`docs/POAM-TEMPLATE.md`** — a starting point for tracking findings;
   get FedRAMP's official POA&M workbook for actual submissions
 - **`CHANGELOG.md`** — change history, in the spirit of the documentation
-  discipline FedRAMP's Significant Change Request process expects
+  discipline FedRAMP's Significant Change Notification rules expect
 
 ## Security scanning
 

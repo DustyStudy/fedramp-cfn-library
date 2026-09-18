@@ -13,7 +13,7 @@ Description: >
 
   Control mapping:
     Rev5 (Moderate/High): AC-3, AC-6, SC-7
-    FedRAMP 20x: KSI-CNBC-01 (configuration management), KSI-SVC-01 (service configuration hardening)
+    FedRAMP 20x: KSI-SVC-SIN (secured from unwanted access), KSI-CNA-MAT (minimal attack surface)
 
 Resources:
   S3AccountPabDLQ:

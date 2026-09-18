@@ -9,7 +9,7 @@ Description: >
 
   Control mapping:
     Rev5 (Moderate/High): SC-7, CM-7
-    FedRAMP 20x: KSI-CNBC-02 (network boundary controls)
+    FedRAMP 20x: KSI-CNA-RNT (limit network traffic), KSI-CNA-MAT (minimal attack surface)
 
 Parameters:
   VpcId:

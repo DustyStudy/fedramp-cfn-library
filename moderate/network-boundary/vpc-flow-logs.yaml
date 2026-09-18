@@ -5,7 +5,7 @@ Description: >
 
   Control mapping:
     Rev5 (Moderate/High): SC-7, AU-2, AU-12
-    FedRAMP 20x: KSI-CNBC-02 (network boundary monitoring), KSI-MLA-01 (comprehensive logging)
+    FedRAMP 20x: KSI-CNA-RNT (network traffic review), KSI-MLA-LET (event logging)
 
 Parameters:
   VpcId:

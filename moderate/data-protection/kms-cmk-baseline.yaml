@@ -8,7 +8,7 @@ Description: >
 
   Control mapping:
     Rev5 (Moderate/High): SC-12, SC-13, SC-28
-    FedRAMP 20x: KSI-SVC-02 (encryption at rest)
+    FedRAMP 20x: KSI-SVC-SIN (encryption at rest), KSI-SVC-ASM (key rotation)
 
 Parameters:
   KeyAlias:

@@ -7,8 +7,8 @@ Description: >
   Control mapping:
     Rev5 (Moderate/High): AC-2, AC-2(3), AC-3, AC-6, AC-6(1), AC-6(5),
       IA-2(1), IA-5(1)
-    FedRAMP 20x: KSI-IAM-01 (strong authentication), KSI-IAM-02 (credential
-      lifecycle), KSI-IAM-03 (least privilege / unused access review)
+    FedRAMP 20x: KSI-IAM-APM (strong authentication), KSI-IAM-ELP (least
+      privilege / unused access review), KSI-MLA-RVL (root usage alerting)
 
 Parameters:
   AnalyzerType:
