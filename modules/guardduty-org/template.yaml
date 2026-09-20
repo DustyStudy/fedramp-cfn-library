@@ -172,11 +172,41 @@ Resources:
         - Arn: !Ref GuardDutyFindingsTopic
           Id: GuardDutyFindingsTarget
 
+  # SNS topics encrypted with the AWS-managed key (alias/aws/sns) silently
+  # drop messages from EventBridge: that key's policy can't be edited to allow
+  # the service to use it. A customer-managed key whose policy trusts the
+  # publishing service is required for the notification path to work.
+  GuardDutyFindingsTopicKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS key for the GuardDuty findings SNS topic'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: AllowEventBridgePublish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+
   GuardDutyFindingsTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: guardduty-findings-medium-plus
-      KmsMasterKeyId: alias/aws/sns
+      KmsMasterKeyId: !GetAtt GuardDutyFindingsTopicKey.Arn
 
   GuardDutyFindingsTopicPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -191,6 +221,10 @@ Resources:
               Service: events.amazonaws.com
             Action: sns:Publish
             Resource: !Ref GuardDutyFindingsTopic
+            # Only this template's rule may publish (confused-deputy guard).
+            Condition:
+              ArnEquals:
+                'aws:SourceArn': !GetAtt GuardDutyFindingsEventRule.Arn
 
 Outputs:
   DetectorId:

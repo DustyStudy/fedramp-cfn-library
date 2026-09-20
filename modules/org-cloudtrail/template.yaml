@@ -62,14 +62,25 @@ Resources:
             Condition:
               StringEquals:
                 'aws:SourceOrgID': !Ref OrganizationId
-          - Sid: AllowCloudWatchLogsDecrypt
+          # CloudWatch Logs encrypts the log group as the logs service. It
+          # needs the full documented action set (not just Decrypt and
+          # GenerateDataKey*) or associating the key with the log group can
+          # fail, and without the encryption-context condition the grant
+          # is not limited to this trail's log group.
+          - Sid: AllowCloudWatchLogsEncrypt
             Effect: Allow
             Principal:
               Service: !Sub 'logs.${AWS::Region}.amazonaws.com'
             Action:
-              - kms:Decrypt
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
               - kms:GenerateDataKey*
+              - kms:Describe*
             Resource: '*'
+            Condition:
+              ArnEquals:
+                'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/cloudtrail/${TrailName}'
 
   CloudTrailKMSKeyAlias:
     Type: AWS::KMS::Alias

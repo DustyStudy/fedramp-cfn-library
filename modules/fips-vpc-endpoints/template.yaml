@@ -30,6 +30,13 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: !Ref VpcCidr
+      # CloudFormation adds an implicit allow-all egress rule when none is
+      # given. This group only receives traffic, so replace it with a
+      # loopback-only rule (the documented way to express "no egress").
+      SecurityGroupEgress:
+        - Description: 'No outbound traffic (loopback only)'
+          IpProtocol: '-1'
+          CidrIp: 127.0.0.1/32
 
   # KMS FIPS Endpoint — kms-fips is a genuine, distinct VPC endpoint
   # service name (confirmed against AWS's PrivateLink service list).

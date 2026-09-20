@@ -126,6 +126,9 @@ Resources:
               Service: config.amazonaws.com
             Action: s3:GetBucketAcl
             Resource: !GetAtt ConfigBucket.Arn
+            Condition:
+              StringEquals:
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
           - Sid: AWSConfigBucketDelivery
             Effect: Allow
             Principal:
@@ -135,6 +138,7 @@ Resources:
             Condition:
               StringEquals:
                 's3:x-amz-acl': bucket-owner-full-control
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
           - Sid: DenyInsecureTransport
             Effect: Deny
             Principal: '*'
