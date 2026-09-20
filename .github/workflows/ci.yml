@@ -6,9 +6,10 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Least privilege by default; the one job that uploads SARIF raises
+# security-events itself.
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   secret-scan:
@@ -16,12 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Run Gitleaks Secret Scanner
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -30,10 +32,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'
 
@@ -47,14 +51,19 @@ jobs:
   sast-security-scan:
     name: Multi-Engine SAST (Checkov & Trivy)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     needs: [secret-scan, syntax-and-lint]
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       # Engine 1: Checkov CloudFormation FedRAMP / NIST Benchmark Scan (Blocking Hard Gate)
       - name: Run Checkov SAST
-        uses: bridgecrewio/checkov-action@master
+        uses: bridgecrewio/checkov-action@444c9db6fa75e2d9c19ebf1fde7322089be9009e # v12
         with:
           framework: cloudformation
           output_format: cli,sarif
@@ -63,7 +72,7 @@ jobs:
 
       # Engine 2: Trivy CloudFormation Scanner (Reporting to Code Scanning tab)
       - name: Run Trivy Misconfiguration Scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'config'
           scan-ref: '.'
@@ -73,7 +82,7 @@ jobs:
           output: 'trivy-cfn-results.sarif'
 
       - name: Upload Trivy Scan Results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
         if: always() && hashFiles('trivy-cfn-results.sarif') != ''
         with:
           sarif_file: 'trivy-cfn-results.sarif'
