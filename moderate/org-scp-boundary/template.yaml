@@ -36,12 +36,39 @@ Resources:
               - 'cloudtrail:DeleteTrail'
               - 'cloudtrail:StopLogging'
               - 'cloudtrail:UpdateTrail'
+              - 'cloudtrail:PutEventSelectors'
               - 'config:DeleteConfigRule'
               - 'config:DeleteConfigurationRecorder'
               - 'config:StopConfigurationRecorder'
               - 'guardduty:DeleteDetector'
+              - 'guardduty:DisassociateFromMasterAccount'
+              - 'guardduty:DisassociateFromAdministratorAccount'
+              - 'guardduty:DisassociateMembers'
+              - 'guardduty:DeleteMembers'
+              - 'guardduty:StopMonitoringMembers'
+              - 'guardduty:UpdateDetector'
               - 'securityhub:DeleteHub'
               - 'securityhub:DisableSecurityHub'
+              - 'securityhub:BatchDisableStandards'
+              - 'securityhub:DisassociateFromAdministratorAccount'
+              - 'securityhub:DisassociateFromMasterAccount'
+              - 'securityhub:DisassociateMembers'
+              - 'securityhub:DeleteMembers'
+              - 'kms:ScheduleKeyDeletion'
+              - 'kms:DisableKey'
+            Resource: '*'
+
+          # Without this, a member account can leave the Organization (which
+          # detaches every SCP) or turn off S3 Block Public Access / default
+          # EBS encryption. The High tier and the shared module already deny
+          # these.
+          - Sid: DenyModifyingAccountBaseline
+            Effect: Deny
+            Action:
+              - 'organizations:LeaveOrganization'
+              - 's3:DeleteAccountPublicAccessBlock'
+              - 's3:PutAccountPublicAccessBlock'
+              - 'ec2:DisableEbsEncryptionByDefault'
             Resource: '*'
 
           - Sid: DenyUnapprovedRegions

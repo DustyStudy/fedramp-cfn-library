@@ -69,6 +69,25 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
 
+  # Patch output can include package and host detail: require TLS (SC-8).
+  PatchLogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PatchLogsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt PatchLogsBucket.Arn
+              - !Sub '${PatchLogsBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
   # FedRAMP SI-2 Compliant Patch Baseline
   AmazonLinuxPatchBaseline:
     Type: AWS::SSM::PatchBaseline

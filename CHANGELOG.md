@@ -12,6 +12,40 @@ FedRAMP expects.
 
 ## [Unreleased]
 
+### Security
+- `moderate/org-scp-boundary`: the Moderate SCP was missing most of the deny
+  list the High tier and `modules/org-scp-boundary` already carry. Member
+  accounts could leave the Organization (which detaches every SCP), turn off
+  S3 Block Public Access or default EBS encryption, and disassociate GuardDuty
+  or delete KMS keys. It now matches the shared module.
+- All three SCP variants also deny the current-name GuardDuty and Security
+  Hub administrator-disassociation actions (`...FromAdministratorAccount`,
+  distinct IAM actions from the legacy `...FromMasterAccount`), member
+  deletion / stop-monitoring, `securityhub:BatchDisableStandards`, and
+  `cloudtrail:PutEventSelectors`.
+- `modules/guardduty-org`, `moderate/incident-response`,
+  `moderate/logging-monitoring`, `moderate/iam-access-control`: SNS topics
+  moved off the AWS-managed `alias/aws/sns` key, which EventBridge and
+  CloudWatch cannot publish to (notifications were silently dropped), onto
+  customer-managed keys. Topic policies now carry `aws:SourceArn` /
+  `aws:SourceAccount` conditions.
+- `moderate/iam-access-control`: the root-usage rule now also matches root
+  console sign-ins and skips service-initiated events.
+- `modules/org-cloudtrail`: the CloudWatch Logs statement in the key policy
+  now grants the documented action set and is limited to this trail's log
+  group via the encryption context.
+- `modules/config-conformance-pack`: Config bucket-policy statements are
+  pinned to this account (`aws:SourceAccount`).
+- `modules/ssm-patching-hardened`: TLS-only bucket policy on patch logs.
+- `modules/waf-hardened`: WAF logging redacts the `authorization` and
+  `cookie` headers; `Scope` is restricted to `REGIONAL` / `CLOUDFRONT`.
+- `modules/eks-hardened`: control-plane logs go to a template-managed,
+  KMS-encrypted log group with bounded retention (new `LogRetentionDays`,
+  default 365). Previously EKS auto-created an unencrypted, never-expiring
+  group.
+- `modules/rds-postgres-hardened`, `modules/fips-vpc-endpoints`: security
+  groups no longer get CloudFormation's implicit allow-all egress rule.
+
 ### Added
 - Compliance documentation: Customer Responsibility Matrix
   (`docs/CUSTOMER-RESPONSIBILITY-MATRIX.md`), coverage gap analysis

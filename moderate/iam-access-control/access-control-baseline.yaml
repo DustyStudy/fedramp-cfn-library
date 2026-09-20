@@ -195,11 +195,41 @@ Resources:
                     'aws:MultiFactorAuthPresent': 'false'
 
   # --- Root account usage alerting (AC-6(5), AU-6) ---
+  # SNS topics encrypted with the AWS-managed key (alias/aws/sns) silently
+  # drop messages from EventBridge: that key's policy can't be edited to allow
+  # the service to use it. A customer-managed key whose policy trusts the
+  # publishing service is required for the notification path to work.
+  RootUsageAlertTopicKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS key for the root account usage alert SNS topic'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: AllowEventBridgePublish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+
   RootUsageAlertTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: !Ref RootUsageAlertTopicName
-      KmsMasterKeyId: alias/aws/sns
+      KmsMasterKeyId: !GetAtt RootUsageAlertTopicKey.Arn
 
   RootUsageAlertTopicPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -214,6 +244,10 @@ Resources:
               Service: events.amazonaws.com
             Action: sns:Publish
             Resource: !Ref RootUsageAlertTopic
+            # Only this template's rule may publish (confused-deputy guard).
+            Condition:
+              ArnEquals:
+                'aws:SourceArn': !GetAtt RootUsageEventRule.Arn
 
   RootUsageEventRule:
     Type: AWS::Events::Rule
@@ -223,14 +257,22 @@ Resources:
         Alerts whenever the root account is used for any action — root
         should only ever be used for the handful of tasks that require it.
         Requires the org/account CloudTrail trail to be logging management
-        events (see modules/org-cloudtrail.yaml).
+        events (see modules/org-cloudtrail.yaml). Root console sign-ins are
+        only delivered in us-east-1, so deploy this stack there (or add a
+        copy of this rule there) to catch them; API activity is matched in
+        whichever region it occurs.
       EventPattern:
         detail-type:
           - AWS API Call via CloudTrail
+          - AWS Console Sign In via CloudTrail
         detail:
           userIdentity:
             type:
               - Root
+            invokedBy:
+              - exists: false
+          eventType:
+            - anything-but: AwsServiceEvent
       State: ENABLED
       Targets:
         - Arn: !Ref RootUsageAlertTopic

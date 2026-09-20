@@ -22,11 +22,41 @@ Parameters:
       GuardDuty's severity scale; 4.0-6.9 is Medium, 0.1-3.9 is Low).
 
 Resources:
+  # SNS topics encrypted with the AWS-managed key (alias/aws/sns) silently
+  # drop messages from EventBridge: that key's policy can't be edited to allow
+  # the service to use it. A customer-managed key whose policy trusts the
+  # publishing service is required for the notification path to work.
+  IncidentNotificationTopicKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS key for the security incident notification SNS topic'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: AllowEventBridgePublish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+
   IncidentNotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: security-incident-notifications
-      KmsMasterKeyId: alias/aws/sns
+      KmsMasterKeyId: !GetAtt IncidentNotificationTopicKey.Arn
 
   IncidentNotificationTopicPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -41,6 +71,12 @@ Resources:
               Service: events.amazonaws.com
             Action: sns:Publish
             Resource: !Ref IncidentNotificationTopic
+            # Only this template's two rules may publish (confused-deputy guard).
+            Condition:
+              ArnEquals:
+                'aws:SourceArn':
+                  - !GetAtt GuardDutyHighSeverityRule.Arn
+                  - !GetAtt SecurityHubCriticalHighRule.Arn
 
   GuardDutyHighSeverityRule:
     Type: AWS::Events::Rule

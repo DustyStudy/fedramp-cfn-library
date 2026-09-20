@@ -24,11 +24,41 @@ Parameters:
       events (the LogGroupName output of modules/org-cloudtrail.yaml).
 
 Resources:
+  # SNS topics encrypted with the AWS-managed key (alias/aws/sns) silently
+  # drop messages from CloudWatch alarms: that key's policy can't be edited to allow
+  # the service to use it. A customer-managed key whose policy trusts the
+  # publishing service is required for the notification path to work.
+  CisAlarmsTopicKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS key for the CIS benchmark alarm SNS topic'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: AllowCloudWatchAlarmsPublish
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+
   CisAlarmsTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: cis-benchmark-alarms
-      KmsMasterKeyId: alias/aws/sns
+      KmsMasterKeyId: !GetAtt CisAlarmsTopicKey.Arn
 
   CisAlarmsTopicPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -43,6 +73,10 @@ Resources:
               Service: cloudwatch.amazonaws.com
             Action: sns:Publish
             Resource: !Ref CisAlarmsTopic
+            # Only alarms in this account may publish (confused-deputy guard).
+            Condition:
+              StringEquals:
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
 
   # --- CloudWatch.1 / CIS 1.7, 4.3 — root user usage ---
   RootUsageFilter:

@@ -9,6 +9,7 @@ Parameters:
   Scope:
     Type: String
     Default: 'REGIONAL'
+    AllowedValues: [REGIONAL, CLOUDFRONT]
 
 Resources:
   # KMS CMK for WAF Logging
@@ -122,6 +123,13 @@ Resources:
       ResourceArn: !GetAtt WebACL.Arn
       LogDestinationConfigs:
         - !GetAtt WafLogGroup.Arn
+      # Credentials and session tokens must not land in the log group in
+      # cleartext (AU-9 / IA-5): redact them before delivery.
+      RedactedFields:
+        - SingleHeader:
+            Name: authorization
+        - SingleHeader:
+            Name: cookie
 
 Outputs:
   WebACLArn:

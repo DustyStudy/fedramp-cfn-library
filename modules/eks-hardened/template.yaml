@@ -15,6 +15,11 @@ Parameters:
     Default: '1.30'
     Description: 'Kubernetes version'
 
+  LogRetentionDays:
+    Type: Number
+    Default: 365
+    Description: 'Retention, in days, for the encrypted EKS control-plane log group'
+
 Resources:
   # Note: unlike CloudWatch Logs (which explicitly requires a key-policy
   # statement for the logs service principal), AWS's EKS documentation does
@@ -39,6 +44,31 @@ Resources:
               AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
             Action: 'kms:*'
             Resource: '*'
+          # CloudWatch Logs encrypts the control-plane log group as the
+          # logs service, not as the IAM principal that created it.
+          - Sid: AllowCloudWatchLogsEncrypt
+            Effect: Allow
+            Principal:
+              Service: !Sub 'logs.${AWS::Region}.amazonaws.com'
+            Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Resource: '*'
+            Condition:
+              ArnEquals:
+                'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/eks/${ClusterName}/cluster'
+
+  # Control-plane log group. If this is not created first, EKS auto-creates
+  # it with no encryption and no retention limit (AU-9 / AU-11 / SC-28).
+  EKSClusterLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/eks/${ClusterName}/cluster'
+      RetentionInDays: !Ref LogRetentionDays
+      KmsKeyId: !GetAtt EKSSecretsKey.Arn
 
   EKSClusterRole:
     Type: AWS::IAM::Role
@@ -55,6 +85,7 @@ Resources:
 
   EKSCluster:
     Type: AWS::EKS::Cluster
+    DependsOn: EKSClusterLogGroup
     Properties:
       Name: !Ref ClusterName
       Version: !Ref KubernetesVersion
