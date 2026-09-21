@@ -1,0 +1,8 @@
+.env
+.env.*
+*.pem
+*.key
+*.zip
+__pycache__/
+.venv/
+*.tfstate
