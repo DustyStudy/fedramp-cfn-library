@@ -45,6 +45,10 @@ FedRAMP expects.
   group.
 - `modules/rds-postgres-hardened`, `modules/fips-vpc-endpoints`: security
   groups no longer get CloudFormation's implicit allow-all egress rule.
+- CI: third-party actions pinned to commit SHAs (`checkov-action` and
+  `trivy-action` were running from their moving `master` branches),
+  checkouts no longer persist the token, and `security-events: write` is
+  scoped to the one job that uploads SARIF.
 
 ### Added
 - Compliance documentation: Customer Responsibility Matrix
