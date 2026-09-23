@@ -9,8 +9,7 @@ narrative.
 **Status (September 2026):** FedRAMP finalized the **Consolidated Rules
 for 2026 ("CR26")** on 2026-06-24, moving 20x from pilot to a generally
 available certification path. "FedRAMP Authorization" is now "FedRAMP
-Certification," and the old Low/Moderate/High baselines are now
-Certification Classes B/C/D (with a new temporary Class A entry tier). See
+Certification," and certifications are organized into Classes A–D. Rev5 Classes B/C/D loosely align with the old Low/Moderate/High baselines, but FedRAMP states there is no direct correlation between a Class and an impact level. See
 `../docs/FEDRAMP-20X-CHEAT-SHEET.md` for a plain-language rundown of what
 changed and why.
 

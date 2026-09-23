@@ -36,8 +36,7 @@ against your organization's current SSP and your 3PAO's expectations.
   assessment model. FedRAMP finalized the **Consolidated Rules for 2026
   ("CR26")** on 2026-06-24, moving 20x from pilot to general availability
   (46 KSIs across 10 families) and renaming "FedRAMP Authorization" to
-  "FedRAMP Certification" with Low/Moderate/High now Certification Classes
-  B/C/D. Templates here are organized by KSI family instead of control
+  "FedRAMP Certification" with certifications now organized into Classes A–D (Rev5 B/C/D loosely align with Low/Moderate/High, but FedRAMP says there is no direct correlation). Templates here are organized by KSI family instead of control
   family — see `fedramp-20x/README.md` for the current catalog and
   `docs/FEDRAMP-20X-CHEAT-SHEET.md` for a plain-language rundown of what
   changed.
